@@ -1,6 +1,5 @@
 <?php
 
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -32,7 +31,7 @@ return new class extends Migration {
         Schema::create('supply_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained();
-            $table->enum('status', ['pending', 'approved', 'ready', 'released', 'done', 'declined'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'ready', 'released', 'done', 'declined', 'cancelled'])->default('pending');
             $table->text('purpose');
             $table->foreignId('approved_by')->nullable()->constrained('users');
             $table->text('declined_reason')->nullable();
@@ -52,7 +51,7 @@ return new class extends Migration {
         Schema::create('ledger_movements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('item_id')->constrained();
-            $table->foreignId('user_id')->constrained(); // Who triggered it
+            $table->foreignId('user_id')->constrained();
             $table->enum('type', ['stock_in', 'release', 'return', 'adjustment']);
             $table->integer('quantity');
             $table->integer('balance_after');
@@ -79,5 +78,3 @@ return new class extends Migration {
         Schema::dropIfExists('categories');
     }
 };
-
-    
