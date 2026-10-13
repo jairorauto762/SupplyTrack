@@ -2,43 +2,85 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import api from './api/axios';
 import Login from './Login';
 import Register from './Register';
-import InventoryTable from './InventoryTable';
+import InventoryDashboard from './pages/InventoryDashboard';
 
-// Only logged-in users can see these pages
+// Safe helper to parse user object without crashing on invalid JSON
+function getStoredUser() {
+  try {
+    const item = localStorage.getItem('user');
+    return item ? JSON.parse(item) : null;
+  } catch (err) {
+    console.error('Failed to parse user from localStorage:', err);
+    return null;
+  }
+}
+
+// Only logged-in users can access protected routes
 function Protected({ children }) {
-  return localStorage.getItem('token') ? children : <Navigate to="/login" />;
+  const token = localStorage.getItem('token');
+  return token ? children : <Navigate to="/login" replace />;
+}
+
+// Logged-in users visiting /login or /register are sent straight to /inventory
+function PublicOnly({ children }) {
+  const token = localStorage.getItem('token');
+  return token ? <Navigate to="/inventory" replace /> : children;
 }
 
 function Inventory() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getStoredUser() || {};
 
   const logout = async () => {
-    try { await api.post('/logout'); } catch (e) { /* ignore */ }
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    try {
+      await api.post('/logout');
+    // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      // Ignore API logout errors and proceed to clear client session
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login', { replace: true });
+    }
   };
 
-  return (
-    <div>
-      <div style={{ padding: 10, display: 'flex', justifyContent: 'space-between' }}>
-        <span>Hello, {user.name} ({user.role})</span>
-        <button onClick={logout}>Log out</button>
-      </div>
-      <InventoryTable />
-    </div>
-  );
+  return <InventoryDashboard user={user} onLogout={logout} />;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/inventory" element={<Protected><Inventory /></Protected>} />
-        <Route path="*" element={<Navigate to="/inventory" />} />
+        {/* Public Routes (Redirect to /inventory if already logged in) */}
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <Login />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnly>
+              <Register />
+            </PublicOnly>
+          }
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/inventory"
+          element={
+            <Protected>
+              <Inventory />
+            </Protected>
+          }
+        />
+
+        {/* Wildcard Fallback */}
+        <Route path="*" element={<Navigate to="/inventory" replace />} />
       </Routes>
     </BrowserRouter>
   );
