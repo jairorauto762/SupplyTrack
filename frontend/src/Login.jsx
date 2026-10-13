@@ -68,7 +68,7 @@ export default function Login() {
         </div>
 
         <div className="relative z-10 text-xs text-slate-500">
-          © {new Date().getFullYear()} SupplyTrack System. All rights reserved.
+          © {new Date().getFullYear()}  SPC SupplyTrack System. All rights reserved.
         </div>
       </div>
 
