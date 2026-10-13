@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import api from './api/axios';
-import Login from './Login';
-import Register from './Register';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import InventoryDashboard from './pages/InventoryDashboard';
 
 // Safe helper to parse user object without crashing on invalid JSON
