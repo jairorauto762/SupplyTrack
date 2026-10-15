@@ -47,7 +47,7 @@ export default function Login() {
             Streamlined Campus Supply Management
           </h1>
           <p className="text-lg text-slate-300 leading-relaxed">
-            Browse live inventory, submit item requests, and monitor approval status in real time—all from one place.
+            Browse live inventory, submit item requests, and monitor approval status in real time all from one place.
           </p>
 
           {/* Quick Features List */}
