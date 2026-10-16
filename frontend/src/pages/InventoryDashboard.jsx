@@ -7,6 +7,7 @@ import InventoryFilters from '../components/inventory/InventoryFilters';
 import InventoryTable from '../components/inventory/InventoryTable';
 import RequestReceipt from '../components/requests/RequestReceipt';
 import RequestStatus from '../components/requests/RequestStatus';
+import { loadRequestCart, saveRequestCart } from '../components/requests/requestCart';
 
 const initialFilters = {
   search: '',
@@ -25,7 +26,7 @@ export default function InventoryDashboard({ user, onLogout }) {
   const [itemsError, setItemsError] = useState('');
   const [dashboardError, setDashboardError] = useState('');
   const [reloadItems, setReloadItems] = useState(0);
-  const [requestCart, setRequestCart] = useState([]);
+  const [requestCart, setRequestCart] = useState(loadRequestCart);
   const [purpose, setPurpose] = useState('');
   const [requestError, setRequestError] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
@@ -33,6 +34,7 @@ export default function InventoryDashboard({ user, onLogout }) {
   const [requestsError, setRequestsError] = useState('');
   const [statusNotices, setStatusNotices] = useState([]);
   const [receipt, setReceipt] = useState(null);
+  const [cancellingRequest, setCancellingRequest] = useState(null);
   const knownRequests = useRef(null);
 
   const loadRequests = useCallback(async () => {
@@ -43,7 +45,7 @@ export default function InventoryDashboard({ user, onLogout }) {
       if (knownRequests.current) {
         const notices = current
           .filter((request) => knownRequests.current.get(request.id) !== request.status)
-          .filter((request) => ['approved', 'ready', 'declined', 'released'].includes(request.status))
+          .filter((request) => ['approved', 'ready', 'declined', 'released', 'cancelled'].includes(request.status))
           .map((request) => `Request #${request.id} is now ${request.status}.`);
 
         if (notices.length) {
@@ -126,6 +128,10 @@ export default function InventoryDashboard({ user, onLogout }) {
     return () => window.clearInterval(timer);
   }, [loadRequests]);
 
+  useEffect(() => {
+    saveRequestCart(requestCart);
+  }, [requestCart]);
+
   const updateFilter = (key, value) => {
     setItemsLoading(true);
     setItemsError('');
@@ -184,6 +190,24 @@ export default function InventoryDashboard({ user, onLogout }) {
       setRequestError(error.response?.data?.message || 'Could not submit the request. Please try again.');
     } finally {
       setRequestLoading(false);
+    }
+  };
+
+  const cancelRequest = async (request) => {
+    if (!window.confirm(`Cancel pending request #${request.id}?`)) {
+      return;
+    }
+
+    setCancellingRequest(request.id);
+    setRequestsError('');
+
+    try {
+      await api.post(`/requests/${request.id}/cancel`);
+      await loadRequests();
+    } catch (error) {
+      setRequestsError(error.response?.data?.message || 'Could not cancel this request. Please try again.');
+    } finally {
+      setCancellingRequest(null);
     }
   };
 
@@ -295,6 +319,16 @@ export default function InventoryDashboard({ user, onLogout }) {
                     </ul>
                     <RequestStatus status={request.status} />
                     {request.declined_reason && <p className="text-sm text-rose-700">Reason: {request.declined_reason}</p>}
+                    {request.status === 'pending' && (
+                      <button
+                        type="button"
+                        disabled={cancellingRequest === request.id}
+                        onClick={() => cancelRequest(request)}
+                        className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {cancellingRequest === request.id ? 'Cancelling…' : 'Cancel pending request'}
+                      </button>
+                    )}
                     {request.status === 'released' && (
                       <button type="button" onClick={() => setReceipt(request)} className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">View printable receipt</button>
                     )}

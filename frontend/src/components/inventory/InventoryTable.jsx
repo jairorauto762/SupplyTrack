@@ -1,13 +1,15 @@
+import { Link } from 'react-router-dom';
 import StockBadge from './StockBadge';
 import StatusBadge from './StatusBadge';
 
 function ItemIdentity({ item }) {
   return (
-    <div className="min-w-0">
+    <Link to={`/inventory/items/${item.id}`} className="block min-w-0 rounded focus:outline-none focus:ring-2 focus:ring-blue-600/30">
       <p className="truncate font-semibold text-slate-900">{item.name}</p>
       {item.description && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{item.description}</p>}
       <p className="mt-1 font-mono text-[11px] font-medium tracking-wide text-slate-400">{item.item_code}</p>
-    </div>
+      <span className="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">View item details</span>
+    </Link>
   );
 }
 
