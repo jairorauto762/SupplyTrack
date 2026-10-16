@@ -142,4 +142,87 @@ class CustodianWorkflowTest extends TestCase
             'balance_after' => 25,
         ]);
     }
+
+    public function test_student_can_cancel_their_own_pending_request(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_student_cannot_cancel_another_students_request(): void
+    {
+        $owner = User::factory()->create(['role' => 'student']);
+        $otherStudent = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $owner->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($otherStudent, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_student_cannot_cancel_a_request_after_it_is_approved(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Only pending requests can be cancelled.');
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_student_can_load_item_details_with_photo_specs_and_stock(): void
+    {
+        $category = Category::create(['name' => 'Laboratory', 'slug' => 'laboratory']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'LAB-010',
+            'name' => 'Safety goggles',
+            'photo_url' => 'https://example.test/goggles.jpg',
+            'specs' => 'Anti-fog, adjustable strap',
+            'stock_quantity' => 12,
+            'min_threshold' => 3,
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson("/api/items/{$item->id}")
+            ->assertOk()
+            ->assertJsonPath('name', 'Safety goggles')
+            ->assertJsonPath('photo_url', 'https://example.test/goggles.jpg')
+            ->assertJsonPath('specs', 'Anti-fog, adjustable strap')
+            ->assertJsonPath('stock_quantity', 12)
+            ->assertJsonPath('category.name', 'Laboratory');
+    }
 }

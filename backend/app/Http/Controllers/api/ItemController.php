@@ -73,6 +73,11 @@ class ItemController extends Controller
         return response()->json(Category::orderBy('name')->get());
     }
 
+    public function show(Item $item)
+    {
+        return response()->json($item->load('category'));
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

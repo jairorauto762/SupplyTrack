@@ -15,12 +15,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('/items', [ItemController::class, 'index']);
+    Route::get('/items/{item}', [ItemController::class, 'show']);
     Route::get('/categories', [ItemController::class, 'categories']);
 });
 
 Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
     Route::get('/requests', [SupplyRequestController::class, 'index']);
     Route::post('/requests', [SupplyRequestController::class, 'store']);
+    Route::post('/requests/{supplyRequest}/cancel', [SupplyRequestController::class, 'cancel']);
 });
 
 Route::middleware(['auth:sanctum', 'role:custodian'])->prefix('custodian')->group(function () {

@@ -79,6 +79,31 @@ class SupplyRequestController extends Controller
         return response()->json(['message' => 'Request submitted successfully!', 'data' => $supplyRequest], 201);
     }
 
+    public function cancel(Request $request, SupplyRequest $supplyRequest)
+    {
+        $cancelledRequest = DB::transaction(function () use ($request, $supplyRequest) {
+            $lockedRequest = SupplyRequest::query()
+                ->whereKey($supplyRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($lockedRequest->user_id === $request->user()->id, 404);
+
+            if ($lockedRequest->status !== 'pending') {
+                abort(response()->json(['message' => 'Only pending requests can be cancelled.'], 422));
+            }
+
+            $lockedRequest->update(['status' => 'cancelled']);
+
+            return $lockedRequest->load(['user:id,name,email', 'requestItems.item.category']);
+        });
+
+        return response()->json([
+            'message' => 'Request cancelled successfully.',
+            'data' => $cancelledRequest,
+        ]);
+    }
+
     public function custodianIndex()
     {
         return response()->json(
