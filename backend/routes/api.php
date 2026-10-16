@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'role:custodian'])->prefix('custodian')->group(function () {
+    Route::get('/items', [ItemController::class, 'custodianIndex']);
     Route::get('/requests', [SupplyRequestController::class, 'custodianIndex']);
     Route::get('/pick-list', [SupplyRequestController::class, 'pickList']);
     Route::post('/requests/{supplyRequest}/approve', [SupplyRequestController::class, 'approve']);

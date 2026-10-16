@@ -8,7 +8,10 @@ use App\Models\Item;
 use App\Models\LedgerMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use RuntimeException;
+use Throwable;
 
 class ItemController extends Controller
 {
@@ -78,6 +81,11 @@ class ItemController extends Controller
         return response()->json($item->load('category'));
     }
 
+    public function custodianIndex()
+    {
+        return response()->json(Item::with('category')->orderBy('name')->get());
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -90,24 +98,43 @@ class ItemController extends Controller
             'stock_quantity' => 'required|integer|min:0',
             'min_threshold' => 'required|integer|min:0',
             'status' => ['required', Rule::in(['available', 'unavailable', 'discontinued'])],
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        $item = DB::transaction(function () use ($data, $request) {
-            $item = Item::create($data);
+        $photoPath = $request->file('photo')?->store('items', 'public');
 
-            if ($item->stock_quantity > 0) {
-                LedgerMovement::create([
-                    'item_id' => $item->id,
-                    'user_id' => $request->user()->id,
-                    'type' => 'stock_in',
-                    'quantity' => $item->stock_quantity,
-                    'balance_after' => $item->stock_quantity,
-                    'notes' => 'Initial stock on item creation',
-                ]);
+        if ($request->hasFile('photo') && ! $photoPath) {
+            throw new RuntimeException('The item photo could not be saved.');
+        }
+
+        if ($photoPath) {
+            $data['photo_url'] = Storage::disk('public')->url($photoPath);
+        }
+
+        try {
+            $item = DB::transaction(function () use ($data, $request) {
+                $item = Item::create($data);
+
+                if ($item->stock_quantity > 0) {
+                    LedgerMovement::create([
+                        'item_id' => $item->id,
+                        'user_id' => $request->user()->id,
+                        'type' => 'stock_in',
+                        'quantity' => $item->stock_quantity,
+                        'balance_after' => $item->stock_quantity,
+                        'notes' => 'Initial stock on item creation',
+                    ]);
+                }
+
+                return $item->load('category');
+            });
+        } catch (Throwable $exception) {
+            if ($photoPath) {
+                Storage::disk('public')->delete($photoPath);
             }
 
-            return $item->load('category');
-        });
+            throw $exception;
+        }
 
         return response()->json(['data' => $item], 201);
     }

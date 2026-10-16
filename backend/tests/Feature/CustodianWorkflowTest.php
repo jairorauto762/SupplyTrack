@@ -8,6 +8,8 @@ use App\Models\LedgerMovement;
 use App\Models\SupplyRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CustodianWorkflowTest extends TestCase
@@ -141,6 +143,55 @@ class CustodianWorkflowTest extends TestCase
             'quantity' => 25,
             'balance_after' => 25,
         ]);
+    }
+
+    public function test_custodian_can_upload_an_item_photo_for_students_to_view(): void
+    {
+        Storage::fake('public');
+
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $response = $this->actingAs($custodian, 'sanctum')
+            ->post('/api/custodian/items', [
+                'category_id' => $category->id,
+                'item_code' => 'PAPER-PHOTO-001',
+                'name' => 'Presentation paper',
+                'description' => 'Heavyweight paper',
+                'specs' => 'A4, 200 gsm',
+                'price' => 20,
+                'stock_quantity' => 10,
+                'min_threshold' => 2,
+                'status' => 'available',
+                'photo' => UploadedFile::fake()->createWithContent(
+                    'paper.png',
+                    base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8ioAAAAASUVORK5CYII=')
+                ),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Presentation paper');
+
+        $photoUrl = $response->json('data.photo_url');
+        $photoPath = 'items/'.basename(parse_url($photoUrl, PHP_URL_PATH));
+        Storage::disk('public')->assertExists($photoPath);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson('/api/items/'.$response->json('data.id'))
+            ->assertOk()
+            ->assertJsonPath('photo_url', $photoUrl)
+            ->assertJsonPath('specs', 'A4, 200 gsm');
+
+        $this->actingAs($custodian, 'sanctum')
+            ->getJson('/api/custodian/items')
+            ->assertOk()
+            ->assertJsonPath('0.photo_url', $photoUrl);
+    }
+
+    public function test_custodian_item_listing_is_not_available_to_students(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson('/api/custodian/items')
+            ->assertForbidden();
     }
 
     public function test_student_can_cancel_their_own_pending_request(): void
