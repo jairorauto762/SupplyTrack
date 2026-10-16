@@ -1,0 +1,279 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Category;
+use App\Models\Item;
+use App\Models\LedgerMovement;
+use App\Models\SupplyRequest;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class CustodianWorkflowTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_registration_always_creates_a_student_account(): void
+    {
+        $this->postJson('/api/register', [
+            'name' => 'New User',
+            'email' => 'new-user@example.test',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'custodian',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('user.role', 'student');
+    }
+
+    public function test_students_and_custodians_are_limited_to_their_own_workflows(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/custodian/requests')
+            ->assertForbidden();
+
+        $this->actingAs($custodian, 'sanctum')
+            ->getJson('/api/requests')
+            ->assertForbidden();
+    }
+
+    public function test_custodian_can_approve_prepare_and_release_a_student_request(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PEN-001',
+            'name' => 'Blue pens',
+            'stock_quantity' => 10,
+            'min_threshold' => 2,
+        ]);
+        $student = User::factory()->create(['role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson('/api/requests', [
+                'purpose' => 'Classroom supplies',
+                'items' => [['item_id' => $item->id, 'quantity' => 3]],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending');
+
+        $request = SupplyRequest::firstOrFail();
+
+        $this->actingAs($custodian, 'sanctum')
+            ->postJson("/api/custodian/requests/{$request->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
+
+        $this->postJson("/api/custodian/requests/{$request->id}/ready")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'ready');
+
+        $this->postJson("/api/custodian/requests/{$request->id}/release")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'released');
+
+        $this->assertSame(7, $item->fresh()->stock_quantity);
+        $this->assertSame(-3, LedgerMovement::where('type', 'release')->value('quantity'));
+
+        $this->postJson("/api/custodian/requests/{$request->id}/release")
+            ->assertUnprocessable();
+
+        $this->assertSame(7, $item->fresh()->stock_quantity);
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/requests')
+            ->assertOk()
+            ->assertJsonPath('0.status', 'released')
+            ->assertJsonPath('0.request_items.0.item.name', 'Blue pens');
+    }
+
+    public function test_students_receive_an_insufficient_stock_error_before_a_request_is_created(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PEN-002',
+            'name' => 'Red pens',
+            'stock_quantity' => 2,
+            'min_threshold' => 1,
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->postJson('/api/requests', [
+                'purpose' => 'Classroom supplies',
+                'items' => [['item_id' => $item->id, 'quantity' => 3]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Not enough stock for Red pens. Available: 2');
+
+        $this->assertDatabaseCount('supply_requests', 0);
+    }
+
+    public function test_custodian_can_add_inventory_and_student_cannot(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $itemData = [
+            'category_id' => $category->id,
+            'item_code' => 'PAPER-001',
+            'name' => 'A4 paper',
+            'price' => 10.50,
+            'stock_quantity' => 25,
+            'min_threshold' => 5,
+            'status' => 'available',
+        ];
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->postJson('/api/custodian/items', $itemData)
+            ->assertForbidden();
+
+        $this->actingAs(User::factory()->create(['role' => 'custodian']), 'sanctum')
+            ->postJson('/api/custodian/items', $itemData)
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'A4 paper');
+
+        $this->assertDatabaseHas('ledger_movements', [
+            'type' => 'stock_in',
+            'quantity' => 25,
+            'balance_after' => 25,
+        ]);
+    }
+
+    public function test_custodian_can_upload_an_item_photo_for_students_to_view(): void
+    {
+        Storage::fake('public');
+
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $response = $this->actingAs($custodian, 'sanctum')
+            ->post('/api/custodian/items', [
+                'category_id' => $category->id,
+                'item_code' => 'PAPER-PHOTO-001',
+                'name' => 'Presentation paper',
+                'description' => 'Heavyweight paper',
+                'specs' => 'A4, 200 gsm',
+                'price' => 20,
+                'stock_quantity' => 10,
+                'min_threshold' => 2,
+                'status' => 'available',
+                'photo' => UploadedFile::fake()->createWithContent(
+                    'paper.png',
+                    base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8ioAAAAASUVORK5CYII=')
+                ),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Presentation paper');
+
+        $photoUrl = $response->json('data.photo_url');
+        $photoPath = 'items/'.basename(parse_url($photoUrl, PHP_URL_PATH));
+        Storage::disk('public')->assertExists($photoPath);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson('/api/items/'.$response->json('data.id'))
+            ->assertOk()
+            ->assertJsonPath('photo_url', $photoUrl)
+            ->assertJsonPath('specs', 'A4, 200 gsm');
+
+        $this->actingAs($custodian, 'sanctum')
+            ->getJson('/api/custodian/items')
+            ->assertOk()
+            ->assertJsonPath('0.photo_url', $photoUrl);
+    }
+
+    public function test_custodian_item_listing_is_not_available_to_students(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson('/api/custodian/items')
+            ->assertForbidden();
+    }
+
+    public function test_student_can_cancel_their_own_pending_request(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_student_cannot_cancel_another_students_request(): void
+    {
+        $owner = User::factory()->create(['role' => 'student']);
+        $otherStudent = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $owner->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($otherStudent, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_student_cannot_cancel_a_request_after_it_is_approved(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $request = SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/requests/{$request->id}/cancel")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Only pending requests can be cancelled.');
+
+        $this->assertDatabaseHas('supply_requests', [
+            'id' => $request->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_student_can_load_item_details_with_photo_specs_and_stock(): void
+    {
+        $category = Category::create(['name' => 'Laboratory', 'slug' => 'laboratory']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'LAB-010',
+            'name' => 'Safety goggles',
+            'photo_url' => 'https://example.test/goggles.jpg',
+            'specs' => 'Anti-fog, adjustable strap',
+            'stock_quantity' => 12,
+            'min_threshold' => 3,
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->getJson("/api/items/{$item->id}")
+            ->assertOk()
+            ->assertJsonPath('name', 'Safety goggles')
+            ->assertJsonPath('photo_url', 'https://example.test/goggles.jpg')
+            ->assertJsonPath('specs', 'Anti-fog, adjustable strap')
+            ->assertJsonPath('stock_quantity', 12)
+            ->assertJsonPath('category.name', 'Laboratory');
+    }
+}

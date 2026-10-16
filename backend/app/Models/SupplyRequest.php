@@ -20,4 +20,9 @@ class SupplyRequest extends Model
     {
         return $this->hasMany(RequestItem::class, 'request_id');
     }
+
+    public function items()
+    {
+        return $this->hasMany(RequestItem::class, 'request_id');
+    }
 }

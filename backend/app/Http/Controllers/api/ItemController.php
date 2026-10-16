@@ -1,11 +1,17 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
+use App\Models\LedgerMovement;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use RuntimeException;
+use Throwable;
 
 class ItemController extends Controller
 {
@@ -18,10 +24,10 @@ class ItemController extends Controller
         if ($search = trim($request->query('search', ''))) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('item_code', 'like', "%{$search}%")
-                  ->orWhereHas('category', function ($c) use ($search) {
-                      $c->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('item_code', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($c) use ($search) {
+                        $c->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -37,7 +43,7 @@ class ItemController extends Controller
                 break;
             case 'low':
                 $query->where('stock_quantity', '>', 0)
-                      ->whereColumn('stock_quantity', '<=', 'min_threshold');
+                    ->whereColumn('stock_quantity', '<=', 'min_threshold');
                 break;
             case 'in':
                 $query->whereColumn('stock_quantity', '>', 'min_threshold');
@@ -68,5 +74,68 @@ class ItemController extends Controller
     public function categories()
     {
         return response()->json(Category::orderBy('name')->get());
+    }
+
+    public function show(Item $item)
+    {
+        return response()->json($item->load('category'));
+    }
+
+    public function custodianIndex()
+    {
+        return response()->json(Item::with('category')->orderBy('name')->get());
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'item_code' => ['required', 'string', 'max:255', 'unique:items,item_code'],
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'specs' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'stock_quantity' => 'required|integer|min:0',
+            'min_threshold' => 'required|integer|min:0',
+            'status' => ['required', Rule::in(['available', 'unavailable', 'discontinued'])],
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $photoPath = $request->file('photo')?->store('items', 'public');
+
+        if ($request->hasFile('photo') && ! $photoPath) {
+            throw new RuntimeException('The item photo could not be saved.');
+        }
+
+        if ($photoPath) {
+            $data['photo_url'] = Storage::disk('public')->url($photoPath);
+        }
+
+        try {
+            $item = DB::transaction(function () use ($data, $request) {
+                $item = Item::create($data);
+
+                if ($item->stock_quantity > 0) {
+                    LedgerMovement::create([
+                        'item_id' => $item->id,
+                        'user_id' => $request->user()->id,
+                        'type' => 'stock_in',
+                        'quantity' => $item->stock_quantity,
+                        'balance_after' => $item->stock_quantity,
+                        'notes' => 'Initial stock on item creation',
+                    ]);
+                }
+
+                return $item->load('category');
+            });
+        } catch (Throwable $exception) {
+            if ($photoPath) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
+            throw $exception;
+        }
+
+        return response()->json(['data' => $item], 201);
     }
 }

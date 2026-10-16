@@ -148,7 +148,7 @@ export default function Register() {
 
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">Create your account</h2>
-            <p className="mt-1 text-sm text-slate-500">Fill in your details to start requesting supplies.</p>
+            <p className="mt-1 text-sm text-slate-500">Create a student account to browse inventory and request supplies.</p>
           </div>
 
           {/* Error Alert */}
