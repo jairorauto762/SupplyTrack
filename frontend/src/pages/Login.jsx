@@ -18,7 +18,7 @@ export default function Login() {
       const res = await api.post('/login', { email, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/inventory');
+      navigate(res.data.user.role === 'custodian' ? '/custodian' : '/inventory');
     } catch (err) {
       setError(err.response?.data?.errors?.email?.[0] || 'Login failed. Please check your credentials.');
     } finally {
