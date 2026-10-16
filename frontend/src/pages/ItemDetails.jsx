@@ -7,7 +7,7 @@ import StatusBadge from '../components/inventory/StatusBadge';
 import StockBadge from '../components/inventory/StockBadge';
 import { addItemToRequestCart } from '../components/requests/requestCart';
 
-export default function StudentItemDetails({ user, onLogout }) {
+export default function ItemDetails({ user, onLogout }) {
   const { itemId } = useParams();
   const navigate = useNavigate();
   const [item, setItem] = useState(null);
@@ -48,7 +48,7 @@ export default function StudentItemDetails({ user, onLogout }) {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <DashboardHeader user={user} onLogout={onLogout} />
       <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-        <Link to="/inventory" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:underline">
+        <Link to={user.role === 'custodian' ? '/custodian?section=items' : '/inventory'} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:underline">
           <span aria-hidden="true">←</span> Back to inventory
         </Link>
 
@@ -98,6 +98,11 @@ export default function StudentItemDetails({ user, onLogout }) {
                   <div className="mt-2"><StockBadge item={item} /></div>
                 </div>
 
+                <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Unit price</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{Number(item.price).toLocaleString(undefined, { style: 'currency', currency: 'PHP' })}</p>
+                </div>
+
                 {item.specs && (
                   <section className="mt-6">
                     <h2 className="text-sm font-bold text-slate-900">Specifications</h2>
@@ -105,17 +110,19 @@ export default function StudentItemDetails({ user, onLogout }) {
                   </section>
                 )}
 
-                <div className="mt-auto pt-7">
-                  <button
-                    type="button"
-                    onClick={addToRequest}
-                    disabled={item.stock_quantity < 1 || item.status !== 'available'}
-                    className="w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
-                  </button>
-                  <p className="mt-2 text-center text-xs text-slate-500">Stock is checked again when you submit your request.</p>
-                </div>
+                {user.role === 'student' && (
+                  <div className="mt-auto pt-7">
+                    <button
+                      type="button"
+                      onClick={addToRequest}
+                      disabled={item.stock_quantity < 1 || item.status !== 'available'}
+                      className="w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
+                    </button>
+                    <p className="mt-2 text-center text-xs text-slate-500">Stock is checked again when you submit your request.</p>
+                  </div>
+                )}
               </div>
             </div>
           </article>

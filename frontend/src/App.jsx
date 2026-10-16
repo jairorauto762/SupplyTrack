@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import InventoryDashboard from './pages/InventoryDashboard';
 import CustodianDashboard from './pages/CustodianDashboard';
-import StudentItemDetails from './pages/StudentItemDetails';
+import ItemDetails from './pages/ItemDetails';
 
 // Safe helper to parse user object without crashing on invalid JSON
 function getStoredUser() {
@@ -109,6 +109,14 @@ export default function App() {
             </Protected>
           }
         />
+        <Route
+          path="/custodian/items/:itemId"
+          element={
+            <Protected role="custodian">
+              <CustodianItem />
+            </Protected>
+          }
+        />
 
         {/* Wildcard Fallback */}
         <Route path="*" element={<DashboardRedirect />} />
@@ -158,5 +166,24 @@ function StudentItem() {
     }
   };
 
-  return <StudentItemDetails user={user} onLogout={logout} />;
+  return <ItemDetails user={user} onLogout={logout} />;
+}
+
+function CustodianItem() {
+  const navigate = useNavigate();
+  const user = getStoredUser() || {};
+
+  const logout = async () => {
+    try {
+      await api.post('/logout');
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login', { replace: true });
+    }
+  };
+
+  return <ItemDetails user={user} onLogout={logout} />;
 }
