@@ -339,6 +339,7 @@ export default function CustodianDashboard({ user, onLogout }) {
               }} className="mt-1.5 block w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-800" /><span className="mt-1 block text-xs font-normal text-slate-500">Optional. JPEG, PNG, or WebP, up to 5 MB. Students will see this photo on the item details page.</span></label>
               {photoPreview && <div className="sm:col-span-2"><img src={photoPreview} alt="Selected item preview" className="h-48 max-w-full rounded-xl border border-slate-200 object-contain" /></div>}
             </div>
+            {categories.length === 0 && !categoriesError && <p role="status" className="text-sm text-amber-800">Inventory categories are not set up yet. Contact your administrator before adding items.</p>}
             <button type="submit" disabled={itemLoading || categories.length === 0} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">{itemLoading ? 'Adding item…' : 'Add item to inventory'}</button>
           </form>
         )}

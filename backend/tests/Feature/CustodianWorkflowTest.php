@@ -7,8 +7,10 @@ use App\Models\Item;
 use App\Models\LedgerMovement;
 use App\Models\SupplyRequest;
 use App\Models\User;
+use Database\Seeders\CategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -142,6 +144,18 @@ class CustodianWorkflowTest extends TestCase
             'type' => 'stock_in',
             'quantity' => 25,
             'balance_after' => 25,
+        ]);
+    }
+
+    public function test_inventory_categories_can_be_seeded_repeatedly(): void
+    {
+        Artisan::call('db:seed', ['--class' => CategorySeeder::class]);
+        Artisan::call('db:seed', ['--class' => CategorySeeder::class]);
+
+        $this->assertDatabaseCount('categories', 3);
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Office Supplies',
+            'slug' => 'office-supplies',
         ]);
     }
 

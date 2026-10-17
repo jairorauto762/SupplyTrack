@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(CategorySeeder::class);
+
         // The two users (this is the part from your screenshot)
         User::create([
             'name' => 'Custodian',
@@ -28,9 +30,9 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Categories and items
-        $office = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
-        $clean  = Category::create(['name' => 'Cleaning', 'slug' => 'cleaning']);
-        $lab    = Category::create(['name' => 'Laboratory', 'slug' => 'laboratory']);
+        $office = Category::where('slug', 'office-supplies')->firstOrFail();
+        $clean = Category::where('slug', 'cleaning')->firstOrFail();
+        $lab = Category::where('slug', 'laboratory')->firstOrFail();
 
         Item::create(['category_id' => $office->id, 'item_code' => 'OFF-001', 'name' => 'Ballpen (Blue)', 'specs' => '0.7mm, box of 12', 'price' => 95.00, 'stock_quantity' => 80, 'min_threshold' => 20]);
         Item::create(['category_id' => $office->id, 'item_code' => 'OFF-002', 'name' => 'Bond Paper A4', 'specs' => '80gsm, 500 sheets', 'price' => 260.00, 'stock_quantity' => 8, 'min_threshold' => 10]);
