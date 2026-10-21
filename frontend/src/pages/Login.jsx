@@ -50,21 +50,6 @@ export default function Login() {
             Browse live inventory, submit item requests, and monitor approval status in real time all from one place.
           </p>
 
-          {/* Quick Features List */}
-          <div className="pt-4 space-y-3 text-sm font-medium text-slate-300">
-            <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
-              <span>Real-time inventory stock updates</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
-              <span>Fast request & release workflows</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
-              <span>Transparent departmental tracking</span>
-            </div>
-          </div>
         </div>
 
         <div className="relative z-10 text-xs text-slate-500">
