@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import InventoryDashboard from './pages/InventoryDashboard';
 import CustodianDashboard from './pages/CustodianDashboard';
+import CustodianItemDetails from './pages/CustodianItemDetails';
 import ItemDetails from './pages/ItemDetails';
 
 // Safe helper to parse user object without crashing on invalid JSON
@@ -185,5 +186,5 @@ function CustodianItem() {
     }
   };
 
-  return <ItemDetails user={user} onLogout={logout} />;
+  return <CustodianItemDetails user={user} onLogout={logout} />;
 }

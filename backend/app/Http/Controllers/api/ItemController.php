@@ -86,6 +86,98 @@ class ItemController extends Controller
         return response()->json(Item::with('category')->orderBy('name')->get());
     }
 
+    public function update(Request $request, Item $item)
+    {
+        $data = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'item_code' => ['required', 'string', 'max:255', Rule::unique('items', 'item_code')->ignore($item->id)],
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'specs' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'stock_quantity' => 'required|integer|min:0|max:2147483647',
+            'min_threshold' => 'required|integer|min:0',
+            'status' => ['required', Rule::in(['available', 'unavailable', 'discontinued'])],
+        ]);
+
+        $updatedItem = DB::transaction(function () use ($data, $item, $request) {
+            $lockedItem = Item::query()->lockForUpdate()->findOrFail($item->id);
+            $stockChange = $data['stock_quantity'] - $lockedItem->stock_quantity;
+            $attributes = $data;
+            unset($attributes['stock_quantity']);
+
+            $lockedItem->fill($attributes);
+            $lockedItem->stock_quantity = $data['stock_quantity'];
+            $lockedItem->save();
+
+            if ($stockChange !== 0) {
+                LedgerMovement::create([
+                    'item_id' => $lockedItem->id,
+                    'user_id' => $request->user()->id,
+                    'type' => 'adjustment',
+                    'quantity' => $stockChange,
+                    'balance_after' => $lockedItem->stock_quantity,
+                    'notes' => 'Manual stock level adjustment',
+                ]);
+            }
+
+            return $lockedItem->load('category');
+        });
+
+        return response()->json(['data' => $updatedItem]);
+    }
+
+    public function restock(Request $request, Item $item)
+    {
+        $data = $request->validate([
+            'quantity' => 'required|integer|min:1|max:2147483647',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        $updatedItem = DB::transaction(function () use ($data, $item, $request) {
+            $lockedItem = Item::query()->lockForUpdate()->findOrFail($item->id);
+
+            if ($lockedItem->stock_quantity > 2147483647 - $data['quantity']) {
+                abort(response()->json(['message' => 'This stock addition exceeds the maximum inventory quantity.'], 422));
+            }
+
+            $lockedItem->stock_quantity += $data['quantity'];
+            $lockedItem->save();
+
+            LedgerMovement::create([
+                'item_id' => $lockedItem->id,
+                'user_id' => $request->user()->id,
+                'type' => 'stock_in',
+                'quantity' => $data['quantity'],
+                'balance_after' => $lockedItem->stock_quantity,
+                'notes' => $data['notes'] ?? 'Additional stock received',
+            ]);
+
+            return $lockedItem->load('category');
+        });
+
+        return response()->json(['data' => $updatedItem]);
+    }
+
+    public function movements(Item $item)
+    {
+        return response()->json(
+            $item->ledgerMovements()
+                ->with('user:id,name')
+                ->latest('id')
+                ->paginate(50)
+        );
+    }
+
+    public function ledger()
+    {
+        return response()->json(
+            LedgerMovement::with(['item:id,name,item_code', 'user:id,name'])
+                ->latest('id')
+                ->paginate(50)
+        );
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

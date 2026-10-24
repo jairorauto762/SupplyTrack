@@ -94,6 +94,13 @@ class CustodianWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('0.status', 'released')
             ->assertJsonPath('0.request_items.0.item.name', 'Blue pens');
+
+        $this->actingAs($custodian, 'sanctum')
+            ->getJson('/api/custodian/ledger')
+            ->assertOk()
+            ->assertJsonPath('data.0.type', 'release')
+            ->assertJsonPath('data.0.quantity', -3)
+            ->assertJsonPath('data.0.item.name', 'Blue pens');
     }
 
     public function test_students_receive_an_insufficient_stock_error_before_a_request_is_created(): void
@@ -145,6 +152,97 @@ class CustodianWorkflowTest extends TestCase
             'quantity' => 25,
             'balance_after' => 25,
         ]);
+    }
+
+    public function test_custodian_can_edit_restock_and_review_item_stock_movements(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PAPER-EDIT-001',
+            'name' => 'Copy paper',
+            'price' => 12.50,
+            'stock_quantity' => 20,
+            'min_threshold' => 5,
+            'status' => 'available',
+        ]);
+
+        $this->actingAs($custodian, 'sanctum')
+            ->putJson("/api/custodian/items/{$item->id}", [
+                'category_id' => $category->id,
+                'item_code' => 'PAPER-EDIT-001',
+                'name' => 'Recycled copy paper',
+                'description' => 'Updated description',
+                'specs' => 'A4',
+                'price' => 15.75,
+                'stock_quantity' => 18,
+                'min_threshold' => 4,
+                'status' => 'discontinued',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Recycled copy paper')
+            ->assertJsonPath('data.price', 15.75)
+            ->assertJsonPath('data.stock_quantity', 18)
+            ->assertJsonPath('data.status', 'discontinued');
+
+        $this->postJson("/api/custodian/items/{$item->id}/restock", [
+            'quantity' => 7,
+            'notes' => 'Supplier delivery',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.stock_quantity', 25);
+
+        $this->assertDatabaseHas('ledger_movements', [
+            'item_id' => $item->id,
+            'user_id' => $custodian->id,
+            'type' => 'adjustment',
+            'quantity' => -2,
+            'balance_after' => 18,
+        ]);
+        $this->assertDatabaseHas('ledger_movements', [
+            'item_id' => $item->id,
+            'user_id' => $custodian->id,
+            'type' => 'stock_in',
+            'quantity' => 7,
+            'balance_after' => 25,
+            'notes' => 'Supplier delivery',
+        ]);
+
+        $this->getJson("/api/custodian/items/{$item->id}/movements")
+            ->assertOk()
+            ->assertJsonPath('data.0.type', 'stock_in')
+            ->assertJsonPath('data.0.user.name', $custodian->name)
+            ->assertJsonPath('data.1.type', 'adjustment');
+
+        $this->getJson('/api/custodian/ledger')
+            ->assertOk()
+            ->assertJsonPath('data.0.item.name', 'Recycled copy paper')
+            ->assertJsonPath('data.0.quantity', 7);
+    }
+
+    public function test_student_cannot_edit_restock_or_view_the_stock_ledger(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PAPER-SECURE-001',
+            'name' => 'Copy paper',
+            'stock_quantity' => 5,
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'student']), 'sanctum')
+            ->putJson("/api/custodian/items/{$item->id}", [])
+            ->assertForbidden();
+
+        $this->postJson("/api/custodian/items/{$item->id}/restock", ['quantity' => 10])
+            ->assertForbidden();
+
+        $this->getJson("/api/custodian/items/{$item->id}/movements")
+            ->assertForbidden();
+
+        $this->getJson('/api/custodian/ledger')
+            ->assertForbidden();
     }
 
     public function test_inventory_categories_can_be_seeded_repeatedly(): void
