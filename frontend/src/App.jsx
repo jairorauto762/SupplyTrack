@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import api from './api/axios';
+import { syncPushSubscription } from './api/pushNotifications';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import InventoryDashboard from './pages/InventoryDashboard';
@@ -44,6 +45,12 @@ function Protected({ children, role }) {
 
         localStorage.setItem('user', JSON.stringify(data.user));
         setStatus(data.user.role === role ? 'authorized' : 'forbidden');
+
+        if (data.user.role === role) {
+          syncPushSubscription().catch((error) => {
+            console.error('Could not sync browser push notifications:', error);
+          });
+        }
       })
       .catch((error) => {
         if (!active) return;
