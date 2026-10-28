@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 
-export default function Register() {
+export default function Register({ role = 'student' }) {
+  const isCustodian = role === 'custodian';
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -37,7 +38,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const res = await api.post('/register', {
+      const res = await api.post(isCustodian ? '/custodian/register' : '/register', {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
@@ -53,7 +54,7 @@ export default function Register() {
       }
 
       if (res.data.token && res.data.user) {
-        navigate('/inventory');
+        navigate(isCustodian ? '/custodian' : '/inventory');
       } else {
         setError('Account created, but no login token was returned. Please log in.');
         navigate('/login');
@@ -147,8 +148,14 @@ export default function Register() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Create your account</h2>
-            <p className="mt-1 text-sm text-slate-500">Create a student account to browse inventory and request supplies.</p>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {isCustodian ? 'Create a custodian account' : 'Create your account'}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {isCustodian
+                ? 'Register for a custodian account to manage inventory and supply requests.'
+                : 'Create a student account to browse inventory and request supplies.'}
+            </p>
           </div>
 
           {/* Error Alert */}
@@ -296,8 +303,11 @@ export default function Register() {
           </form>
 
           <p className="text-center text-sm text-slate-500">
-            Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+            Already have a {isCustodian ? 'custodian' : 'student'} account?{' '}
+            <Link
+              to={isCustodian ? '/custodian/login' : '/login'}
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+            >
               Log in
             </Link>
           </p>
