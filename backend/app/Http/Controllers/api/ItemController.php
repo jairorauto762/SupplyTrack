@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\LedgerMovement;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,8 @@ use Throwable;
 
 class ItemController extends Controller
 {
+    public function __construct(private PushNotificationService $pushNotifications) {}
+
     // Features 2-5: browse, search, filter, sort
     public function index(Request $request)
     {
@@ -100,8 +103,10 @@ class ItemController extends Controller
             'status' => ['required', Rule::in(['available', 'unavailable', 'discontinued'])],
         ]);
 
-        $updatedItem = DB::transaction(function () use ($data, $item, $request) {
+        $becameOutOfStock = false;
+        $updatedItem = DB::transaction(function () use ($data, $item, $request, &$becameOutOfStock) {
             $lockedItem = Item::query()->lockForUpdate()->findOrFail($item->id);
+            $becameOutOfStock = $lockedItem->stock_quantity > 0 && (int) $data['stock_quantity'] === 0;
             $stockChange = $data['stock_quantity'] - $lockedItem->stock_quantity;
             $attributes = $data;
             unset($attributes['stock_quantity']);
@@ -123,6 +128,15 @@ class ItemController extends Controller
 
             return $lockedItem->load('category');
         });
+
+        if ($becameOutOfStock) {
+            $this->pushNotifications->sendToRole(
+                'custodian',
+                'Out of stock alert',
+                "{$updatedItem->name} is now out of stock.",
+                '/custodian?section=items',
+            );
+        }
 
         return response()->json(['data' => $updatedItem]);
     }
@@ -226,6 +240,15 @@ class ItemController extends Controller
             }
 
             throw $exception;
+        }
+
+        if ($item->stock_quantity === 0) {
+            $this->pushNotifications->sendToRole(
+                'custodian',
+                'Out of stock alert',
+                "{$item->name} was added with no stock available.",
+                '/custodian?section=items',
+            );
         }
 
         return response()->json(['data' => $item], 201);
