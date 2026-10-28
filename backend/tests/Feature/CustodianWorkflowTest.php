@@ -18,7 +18,7 @@ class CustodianWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_always_creates_a_student_account(): void
+    public function test_student_registration_always_creates_a_student_account(): void
     {
         $this->postJson('/api/register', [
             'name' => 'New User',
@@ -29,6 +29,47 @@ class CustodianWorkflowTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('user.role', 'student');
+    }
+
+    public function test_custodian_registration_creates_a_custodian_account(): void
+    {
+        $this->postJson('/api/custodian/register', [
+            'name' => 'New Custodian',
+            'email' => 'new-custodian@example.test',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'student',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('user.role', 'custodian');
+    }
+
+    public function test_login_endpoints_only_accept_their_own_role(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $this->postJson('/api/custodian/login', [
+            'email' => $custodian->email,
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'custodian');
+
+        $this->postJson('/api/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'student');
+
+        $this->postJson('/api/custodian/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/login', [
+            'email' => $custodian->email,
+            'password' => 'password',
+        ])->assertUnprocessable();
     }
 
     public function test_students_and_custodians_are_limited_to_their_own_workflows(): void
