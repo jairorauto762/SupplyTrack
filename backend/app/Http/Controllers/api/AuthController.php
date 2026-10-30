@@ -11,6 +11,16 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        return $this->registerWithRole($request, 'student');
+    }
+
+    public function registerCustodian(Request $request)
+    {
+        return $this->registerWithRole($request, 'custodian');
+    }
+
+    private function registerWithRole(Request $request, string $role)
+    {
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
@@ -21,7 +31,7 @@ class AuthController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'role' => 'student',
+            'role' => $role,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -31,6 +41,16 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        return $this->loginWithRole($request, 'student');
+    }
+
+    public function loginCustodian(Request $request)
+    {
+        return $this->loginWithRole($request, 'custodian');
+    }
+
+    private function loginWithRole(Request $request, string $role)
+    {
         $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
@@ -38,7 +58,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
+        if (! $user || $user->role !== $role || ! Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'Invalid email or password.'], 422);
         }
 

@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\LedgerMovement;
 use App\Models\SupplyRequest;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Database\Seeders\CategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -18,7 +19,7 @@ class CustodianWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_always_creates_a_student_account(): void
+    public function test_student_registration_always_creates_a_student_account(): void
     {
         $this->postJson('/api/register', [
             'name' => 'New User',
@@ -29,6 +30,181 @@ class CustodianWorkflowTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('user.role', 'student');
+    }
+
+    public function test_custodian_registration_creates_a_custodian_account(): void
+    {
+        $this->postJson('/api/custodian/register', [
+            'name' => 'New Custodian',
+            'email' => 'new-custodian@example.test',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'student',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('user.role', 'custodian');
+    }
+
+    public function test_login_endpoints_only_accept_their_own_role(): void
+    {
+        $student = User::factory()->create(['name' => 'Test Student', 'role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $this->postJson('/api/custodian/login', [
+            'email' => $custodian->email,
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'custodian');
+
+        $this->postJson('/api/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'student');
+
+        $this->postJson('/api/custodian/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/login', [
+            'email' => $custodian->email,
+            'password' => 'password',
+        ])->assertUnprocessable();
+    }
+
+    public function test_push_subscriptions_are_saved_and_deleted_for_the_current_user(): void
+    {
+        config()->set('services.webpush.public_key', 'test-public-key');
+        $student = User::factory()->create(['role' => 'student']);
+        $subscription = [
+            'endpoint' => 'https://fcm.googleapis.com/device/123',
+            'keys' => [
+                'p256dh' => 'browser-public-key',
+                'auth' => 'browser-auth-token',
+            ],
+        ];
+
+        $this->getJson('/api/push/vapid-public-key')->assertUnauthorized();
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/push/vapid-public-key')
+            ->assertOk()
+            ->assertJsonPath('publicKey', 'test-public-key');
+
+        $this->postJson('/api/push-subscriptions', $subscription)->assertNoContent();
+
+        $this->assertDatabaseHas('push_subscriptions', [
+            'user_id' => $student->id,
+            'endpoint' => $subscription['endpoint'],
+            'public_key' => 'browser-public-key',
+            'auth_token' => 'browser-auth-token',
+            'content_encoding' => 'aes128gcm',
+        ]);
+
+        $this->postJson('/api/push-subscriptions', [
+            ...$subscription,
+            'endpoint' => 'https://attacker.example.test/metadata',
+        ])->assertUnprocessable();
+
+        $this->deleteJson('/api/push-subscriptions', [
+            'endpoint' => $subscription['endpoint'],
+        ])->assertNoContent();
+
+        $this->assertDatabaseMissing('push_subscriptions', [
+            'endpoint' => $subscription['endpoint'],
+        ]);
+    }
+
+    public function test_push_alerts_are_sent_for_new_requests_pickup_and_out_of_stock(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PAPER-PUSH-001',
+            'name' => 'A4 paper',
+            'stock_quantity' => 3,
+            'min_threshold' => 1,
+        ]);
+        $student = User::factory()->create(['name' => 'Test Student', 'role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $pushNotifications = \Mockery::mock(PushNotificationService::class);
+        $pushNotifications->shouldReceive('sendToRole')
+            ->once()
+            ->withArgs(fn ($role, $title, $body, $url) => $role === 'custodian'
+                && $title === 'New supply request'
+                && preg_match('/^Test Student submitted request #\d+\.$/', $body) === 1
+                && $url === '/custodian')
+            ->ordered();
+        $pushNotifications->shouldReceive('sendToUser')
+            ->once()
+            ->withArgs(fn ($userId, $title, $body, $url) => $userId === $student->id
+                && $title === 'Request ready for pickup'
+                && preg_match('/^Your supply request #\d+ is ready for pickup\.$/', $body) === 1
+                && $url === '/inventory')
+            ->ordered();
+        $pushNotifications->shouldReceive('sendToRole')
+            ->once()
+            ->with('custodian', 'Out of stock alert', 'A4 paper is now out of stock.', '/custodian?section=items')
+            ->ordered();
+        $this->app->instance(PushNotificationService::class, $pushNotifications);
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson('/api/requests', [
+                'purpose' => 'Classroom supplies',
+                'items' => [['item_id' => $item->id, 'quantity' => 3]],
+            ])
+            ->assertCreated();
+
+        $request = SupplyRequest::firstOrFail();
+
+        $this->actingAs($custodian, 'sanctum')
+            ->postJson("/api/custodian/requests/{$request->id}/approve")
+            ->assertOk();
+
+        $this->postJson("/api/custodian/requests/{$request->id}/ready")
+            ->assertOk();
+
+        $this->postJson("/api/custodian/requests/{$request->id}/release")
+            ->assertOk();
+    }
+
+    public function test_manual_stock_adjustment_sends_out_of_stock_alert_only_when_stock_reaches_zero(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'PAPER-ADJUST-001',
+            'name' => 'Copy paper',
+            'stock_quantity' => 4,
+            'min_threshold' => 1,
+        ]);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+
+        $pushNotifications = \Mockery::mock(PushNotificationService::class);
+        $pushNotifications->shouldReceive('sendToRole')
+            ->once()
+            ->with('custodian', 'Out of stock alert', 'Copy paper is now out of stock.', '/custodian?section=items');
+        $this->app->instance(PushNotificationService::class, $pushNotifications);
+
+        $itemData = [
+            'category_id' => $category->id,
+            'item_code' => $item->item_code,
+            'name' => $item->name,
+            'price' => 0,
+            'stock_quantity' => '0',
+            'min_threshold' => $item->min_threshold,
+            'status' => 'unavailable',
+        ];
+
+        $this->actingAs($custodian, 'sanctum')
+            ->putJson("/api/custodian/items/{$item->id}", $itemData)
+            ->assertOk()
+            ->assertJsonPath('data.stock_quantity', '0');
+
+        $this->putJson("/api/custodian/items/{$item->id}", $itemData)
+            ->assertOk();
     }
 
     public function test_students_and_custodians_are_limited_to_their_own_workflows(): void

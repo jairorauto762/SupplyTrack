@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import api from './api/axios';
+import { syncPushSubscription } from './api/pushNotifications';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import InventoryDashboard from './pages/InventoryDashboard';
@@ -24,19 +26,71 @@ function getDashboardPath() {
 }
 
 function Protected({ children, role }) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    return <Navigate to="/login" replace />;
+  const [status, setStatus] = useState(() => (
+    localStorage.getItem('token') ? 'checking' : 'unauthenticated'
+  ));
+
+  useEffect(() => {
+    let active = true;
+
+    if (!localStorage.getItem('token')) {
+      return () => {
+        active = false;
+      };
+    }
+
+    api.get('/me')
+      .then(({ data }) => {
+        if (!active) return;
+
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setStatus(data.user.role === role ? 'authorized' : 'forbidden');
+
+        if (data.user.role === role) {
+          syncPushSubscription().catch((error) => {
+            console.error('Could not sync browser push notifications:', error);
+          });
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setStatus('unauthenticated');
+        } else {
+          console.error('Unable to verify the current user:', error);
+          setStatus('error');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [role]);
+
+  if (status === 'checking') {
+    return <div className="p-6 text-center text-slate-600">Verifying your account...</div>;
   }
 
-  const user = getStoredUser();
-  if (!user?.role) {
-    return <Navigate to="/login" replace />;
+  if (status === 'unauthenticated') {
+    return <Navigate to={role === 'custodian' ? '/custodian/login' : '/login'} replace />;
   }
 
-  return role && user?.role !== role
-    ? <Navigate to={getDashboardPath()} replace />
-    : children;
+  if (status === 'forbidden') {
+    return <Navigate to={getDashboardPath()} replace />;
+  }
+
+  if (status === 'error') {
+    return (
+      <div role="alert" className="p-6 text-center text-red-700">
+        We could not verify your account. Check that the server is running, then refresh this page.
+      </div>
+    );
+  }
+
+  return children;
 }
 
 function PublicOnly({ children }) {
@@ -77,10 +131,26 @@ export default function App() {
           }
         />
         <Route
+          path="/custodian/login"
+          element={
+            <PublicOnly>
+              <Login role="custodian" />
+            </PublicOnly>
+          }
+        />
+        <Route
           path="/register"
           element={
             <PublicOnly>
               <Register />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/custodian/register"
+          element={
+            <PublicOnly>
+              <Register role="custodian" />
             </PublicOnly>
           }
         />

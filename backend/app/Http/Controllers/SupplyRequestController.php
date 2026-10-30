@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use App\Models\LedgerMovement;
 use App\Models\SupplyRequest;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SupplyRequestController extends Controller
 {
+    public function __construct(private PushNotificationService $pushNotifications) {}
+
     public function index(Request $request)
     {
         return response()->json(
@@ -75,6 +78,13 @@ class SupplyRequestController extends Controller
 
             return $req->load(['user:id,name,email', 'requestItems.item.category']);
         });
+
+        $this->pushNotifications->sendToRole(
+            'custodian',
+            'New supply request',
+            "{$user->name} submitted request #{$supplyRequest->id}.",
+            '/custodian',
+        );
 
         return response()->json(['message' => 'Request submitted successfully!', 'data' => $supplyRequest], 201);
     }
@@ -163,12 +173,20 @@ class SupplyRequestController extends Controller
 
         $supplyRequest->update(['status' => 'ready']);
 
+        $this->pushNotifications->sendToUser(
+            $supplyRequest->user_id,
+            'Request ready for pickup',
+            "Your supply request #{$supplyRequest->id} is ready for pickup.",
+            '/inventory',
+        );
+
         return response()->json(['data' => $supplyRequest->load(['user:id,name,email', 'requestItems.item.category'])]);
     }
 
     public function release(Request $request, SupplyRequest $supplyRequest)
     {
-        $releasedRequest = DB::transaction(function () use ($supplyRequest, $request) {
+        $outOfStockItems = [];
+        $releasedRequest = DB::transaction(function () use ($supplyRequest, $request, &$outOfStockItems) {
             $lockedRequest = SupplyRequest::query()
                 ->whereKey($supplyRequest->id)
                 ->lockForUpdate()
@@ -200,6 +218,10 @@ class SupplyRequestController extends Controller
                 $item->stock_quantity -= $requestItem->quantity;
                 $item->save();
 
+                if ($item->stock_quantity <= 0) {
+                    $outOfStockItems[] = $item->name;
+                }
+
                 LedgerMovement::create([
                     'item_id' => $item->id,
                     'user_id' => $request->user()->id,
@@ -217,6 +239,15 @@ class SupplyRequestController extends Controller
 
             return $lockedRequest->load(['user:id,name,email', 'requestItems.item.category']);
         });
+
+        foreach (array_unique($outOfStockItems) as $itemName) {
+            $this->pushNotifications->sendToRole(
+                'custodian',
+                'Out of stock alert',
+                "{$itemName} is now out of stock.",
+                '/custodian?section=items',
+            );
+        }
 
         return response()->json([
             'message' => 'Items released and ledger updated successfully.',

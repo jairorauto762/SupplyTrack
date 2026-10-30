@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 
-export default function Login() {
+export default function Login({ role = 'student' }) {
+  const isCustodian = role === 'custodian';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,10 +16,10 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post('/login', { email, password });
+      const res = await api.post(isCustodian ? '/custodian/login' : '/login', { email, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate(res.data.user.role === 'custodian' ? '/custodian' : '/inventory');
+      navigate(isCustodian ? '/custodian' : '/inventory');
     } catch (err) {
       setError(err.response?.data?.errors?.email?.[0] || 'Login failed. Please check your credentials.');
     } finally {
@@ -39,7 +40,7 @@ export default function Login() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <span className="text-xl font-bold tracking-tight">SupplyTrack</span>
+          <span className="text-xl font-bold tracking-tight"> SPC SupplyTrack</span>
         </div>
 
         <div className="relative z-10 my-auto max-w-lg space-y-6">
@@ -72,8 +73,14 @@ export default function Login() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back</h2>
-            <p className="mt-1 text-sm text-slate-500">Please enter your credentials to log in.</p>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {isCustodian ? 'Custodian sign in' : 'Welcome back'}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {isCustodian
+                ? 'Sign in to manage inventory and supply requests.'
+                : 'Please enter your credentials to log in.'}
+            </p>
           </div>
 
           {/* Error Alert */}
@@ -161,9 +168,21 @@ export default function Login() {
           </form>
 
           <p className="text-center text-sm text-slate-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">
-              Sign up
+            {isCustodian ? "Don't have a custodian account? " : "Don't have a student account? "}
+            <Link
+              to={isCustodian ? '/custodian/register' : '/register'}
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              {isCustodian ? 'Register as custodian' : 'Sign up'}
+            </Link>
+          </p>
+          <p className="text-center text-sm text-slate-500">
+            {isCustodian ? 'Are you a student? ' : 'Are you a custodian? '}
+            <Link
+              to={isCustodian ? '/login' : '/custodian/login'}
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              {isCustodian ? 'Student login' : 'Custodian login'}
             </Link>
           </p>
         </div>

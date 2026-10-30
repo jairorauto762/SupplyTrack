@@ -3,15 +3,21 @@
 use App\Http\Controllers\api\AuthController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\ItemController;
+use App\Http\Controllers\api\PushSubscriptionController;
 use App\Http\Controllers\SupplyRequestController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/custodian/register', [AuthController::class, 'registerCustodian']);
+Route::post('/custodian/login', [AuthController::class, 'loginCustodian']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/push/vapid-public-key', [PushSubscriptionController::class, 'publicKey']);
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store']);
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy']);
 
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('/items', [ItemController::class, 'index']);
