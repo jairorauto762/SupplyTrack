@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
   body {
     background: white !important;
   }
@@ -9,8 +13,14 @@
     visibility: hidden !important;
   }
 
-  .print-target,
-  .print-target * {
+  body[data-print-target="receipt"] .print-receipt-target,
+  body[data-print-target="receipt"] .print-receipt-target *,
+  body[data-print-target="pick-list"] .print-pick-list-target,
+  body[data-print-target="pick-list"] .print-pick-list-target *,
+  body[data-print-target="ledger"] .print-ledger-target,
+  body[data-print-target="ledger"] .print-ledger-target *,
+  body[data-print-target="inventory"] .print-inventory-target,
+  body[data-print-target="inventory"] .print-inventory-target * {
     visibility: visible !important;
   }
 
@@ -19,10 +29,15 @@
   }
 
   .print-target {
-    position: absolute !important;
-    inset: 0 auto auto 0;
-    width: 100%;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    margin: 0 !important;
     box-shadow: none !important;
+    break-inside: auto;
+  }
+
+  .print-target tr {
     break-inside: avoid;
   }
 }

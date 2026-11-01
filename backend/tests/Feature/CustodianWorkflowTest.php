@@ -397,6 +397,67 @@ class CustodianWorkflowTest extends TestCase
             ->assertJsonPath('data.0.quantity', 7);
     }
 
+    public function test_custodian_can_filter_the_ledger_and_prepare_all_matching_rows_for_printing(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'LEDGER-FILTER-001',
+            'name' => 'Ledger filter paper',
+            'stock_quantity' => 10,
+        ]);
+        $custodian = User::factory()->create(['name' => 'First Custodian', 'role' => 'custodian']);
+        $otherCustodian = User::factory()->create(['name' => 'Other Custodian', 'role' => 'custodian']);
+
+        $matchingMovement = LedgerMovement::create([
+            'item_id' => $item->id,
+            'user_id' => $custodian->id,
+            'type' => 'stock_in',
+            'quantity' => 5,
+            'balance_after' => 10,
+        ]);
+        $olderMovement = LedgerMovement::create([
+            'item_id' => $item->id,
+            'user_id' => $otherCustodian->id,
+            'type' => 'adjustment',
+            'quantity' => -1,
+            'balance_after' => 9,
+        ]);
+        $olderMovement->created_at = now()->subDays(2);
+        $olderMovement->save();
+
+        $filters = [
+            'date_from' => now()->toDateString(),
+            'date_to' => now()->toDateString(),
+            'item_id' => $item->id,
+            'user_id' => $custodian->id,
+        ];
+
+        $this->actingAs($custodian, 'sanctum')
+            ->getJson('/api/custodian/ledger/filters')
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $item->id)
+            ->assertJsonPath('people.0.id', $custodian->id);
+
+        $this->getJson('/api/custodian/ledger?'.http_build_query($filters))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $matchingMovement->id);
+
+        $this->getJson('/api/custodian/ledger/print?'.http_build_query($filters))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $matchingMovement->id);
+
+        $this->getJson('/api/custodian/ledger?date_to='.now()->toDateString())
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.1.id', $matchingMovement->id);
+
+        $this->getJson('/api/custodian/ledger?date_from=2026-10-31&date_to=2026-10-30')
+            ->assertUnprocessable();
+    }
+
     public function test_student_cannot_edit_restock_or_view_the_stock_ledger(): void
     {
         $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);

@@ -1,3 +1,5 @@
+import printPage from '../../utils/printPage';
+
 export default function RequestReceipt({ request, onClose }) {
   if (!request) {
     return null;
@@ -6,7 +8,7 @@ export default function RequestReceipt({ request, onClose }) {
   const items = request.request_items || request.requestItems || [];
 
   return (
-    <section className="print-target rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <section className="print-target print-receipt-target rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-700">SPC SupplyTrack</p>
@@ -14,7 +16,7 @@ export default function RequestReceipt({ request, onClose }) {
           <p className="mt-1 text-sm text-slate-500">Released {request.released_at ? new Date(request.released_at).toLocaleString() : 'today'}</p>
         </div>
         <div className="print-hidden flex gap-2">
-          <button type="button" onClick={() => window.print()} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+          <button type="button" onClick={() => printPage('receipt')} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
             Print receipt
           </button>
           {onClose && (

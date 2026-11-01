@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\LedgerMovement;
+use App\Models\User;
 use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -183,13 +184,45 @@ class ItemController extends Controller
         );
     }
 
-    public function ledger()
+    public function ledger(Request $request)
     {
         return response()->json(
-            LedgerMovement::with(['item:id,name,item_code', 'user:id,name'])
+            $this->ledgerQuery($request)
                 ->latest('id')
                 ->paginate(50)
         );
+    }
+
+    public function ledgerFilters()
+    {
+        return response()->json([
+            'items' => Item::query()->orderBy('name')->get(['id', 'name']),
+            'people' => User::query()
+                ->whereIn('id', LedgerMovement::query()->select('user_id')->distinct())
+                ->orderBy('name')
+                ->get(['id', 'name']),
+        ]);
+    }
+
+    public function printLedger(Request $request)
+    {
+        return response()->json($this->ledgerQuery($request)->latest('id')->get());
+    }
+
+    private function ledgerQuery(Request $request)
+    {
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'item_id' => ['nullable', 'integer', 'exists:items,id'],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        return LedgerMovement::with(['item:id,name,item_code', 'user:id,name'])
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+            ->when($filters['item_id'] ?? null, fn ($query, $itemId) => $query->where('item_id', $itemId))
+            ->when($filters['user_id'] ?? null, fn ($query, $userId) => $query->where('user_id', $userId));
     }
 
     public function store(Request $request)

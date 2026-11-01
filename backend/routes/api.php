@@ -36,6 +36,8 @@ Route::middleware(['auth:sanctum', 'role:custodian'])->prefix('custodian')->grou
     Route::get('/items/{item}/movements', [ItemController::class, 'movements']);
     Route::put('/items/{item}', [ItemController::class, 'update']);
     Route::post('/items/{item}/restock', [ItemController::class, 'restock']);
+    Route::get('/ledger/filters', [ItemController::class, 'ledgerFilters']);
+    Route::get('/ledger/print', [ItemController::class, 'printLedger']);
     Route::get('/ledger', [ItemController::class, 'ledger']);
     Route::get('/requests', [SupplyRequestController::class, 'custodianIndex']);
     Route::get('/pick-list', [SupplyRequestController::class, 'pickList']);

@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
+import InventorySummary from '../components/dashboard/InventorySummary';
+import InventoryInsights from '../components/dashboard/InventoryInsights';
 import RequestReceipt from '../components/requests/RequestReceipt';
 import MovementTable from '../components/inventory/MovementTable';
+import printPage from '../utils/printPage';
 
 const emptyItem = {
   category_id: '',
@@ -15,6 +18,13 @@ const emptyItem = {
   stock_quantity: '0',
   min_threshold: '5',
   status: 'available',
+};
+
+const emptyLedgerFilters = {
+  date_from: '',
+  date_to: '',
+  item_id: '',
+  user_id: '',
 };
 
 function RequestCard({ request, action, busy }) {
@@ -63,6 +73,9 @@ function RequestCard({ request, action, busy }) {
 export default function CustodianDashboard({ user, onLogout }) {
   const [searchParams] = useSearchParams();
   const [requests, setRequests] = useState([]);
+  const [inventorySummary, setInventorySummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
   const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState(searchParams.get('section') === 'items' ? 'items' : 'requests');
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -84,6 +97,12 @@ export default function CustodianDashboard({ user, onLogout }) {
   const [ledger, setLedger] = useState(null);
   const [ledgerError, setLedgerError] = useState('');
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerFilters, setLedgerFilters] = useState(emptyLedgerFilters);
+  const [appliedLedgerFilters, setAppliedLedgerFilters] = useState(emptyLedgerFilters);
+  const [ledgerOptions, setLedgerOptions] = useState({ items: [], people: [] });
+  const [ledgerOptionsError, setLedgerOptionsError] = useState('');
+  const [ledgerPrintRows, setLedgerPrintRows] = useState(null);
+  const [ledgerPrintLoading, setLedgerPrintLoading] = useState(false);
 
   const loadRequests = useCallback(async () => {
     try {
@@ -110,7 +129,7 @@ export default function CustodianDashboard({ user, onLogout }) {
   const loadLedger = useCallback(async (page = 1) => {
     setLedgerLoading(true);
     try {
-      const response = await api.get(`/custodian/ledger?page=${page}`);
+      const response = await api.get('/custodian/ledger', { params: { ...appliedLedgerFilters, page } });
       setLedger(response.data);
       setLedgerError('');
     } catch (error) {
@@ -118,12 +137,22 @@ export default function CustodianDashboard({ user, onLogout }) {
     } finally {
       setLedgerLoading(false);
     }
-  }, []);
+  }, [appliedLedgerFilters]);
 
   useEffect(() => {
     api.get('/categories')
       .then((response) => setCategories(response.data))
       .catch((error) => setCategoriesError(error.response?.data?.message || 'Could not load inventory categories.'));
+
+    api.get('/dashboard/summary')
+      .then((response) => {
+        setInventorySummary(response.data);
+        setSummaryError('');
+      })
+      .catch((error) => {
+        setSummaryError(error.response?.data?.message || 'Could not load inventory totals.');
+      })
+      .finally(() => setSummaryLoading(false));
 
     const initialLoad = window.setTimeout(loadRequests, 0);
     const timer = window.setInterval(loadRequests, 15000);
@@ -137,11 +166,32 @@ export default function CustodianDashboard({ user, onLogout }) {
 
   useEffect(() => {
     if (activeTab === 'ledger') {
+      api.get('/custodian/ledger/filters')
+        .then((response) => {
+          setLedgerOptions(response.data);
+          setLedgerOptionsError('');
+        })
+        .catch((error) => {
+          setLedgerOptionsError(error.response?.data?.message || 'Could not load ledger filter options.');
+        });
       const initialLedgerLoad = window.setTimeout(loadLedger, 0);
       return () => window.clearTimeout(initialLedgerLoad);
     }
     return undefined;
   }, [activeTab, loadLedger]);
+
+  const prepareLedgerPrint = async () => {
+    setLedgerPrintLoading(true);
+    setLedgerError('');
+    try {
+      const response = await api.get('/custodian/ledger/print', { params: appliedLedgerFilters });
+      setLedgerPrintRows(response.data);
+    } catch (error) {
+      setLedgerError(error.response?.data?.message || 'Could not prepare the printable ledger.');
+    } finally {
+      setLedgerPrintLoading(false);
+    }
+  };
 
   useEffect(() => () => {
     if (photoPreviewUrl.current) {
@@ -297,14 +347,24 @@ export default function CustodianDashboard({ user, onLogout }) {
             )}
           </section>
         ) : activeTab === 'items' ? (
-          <section className="space-y-4">
+          <section className="print-target print-inventory-target space-y-4">
+            <InventorySummary summary={inventorySummary} loading={summaryLoading} />
+            {summaryError && <p role="alert" className="print-hidden rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{summaryError}</p>}
+            {!inventoryLoading && !summaryLoading && inventorySummary && (
+              <InventoryInsights
+                summary={inventorySummary}
+                lowStockItems={inventoryItems.filter((item) => item.stock_quantity > 0 && item.stock_quantity <= item.min_threshold)}
+                itemLinkPrefix="/custodian/items"
+              />
+            )}
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Inventory management</p>
                 <h2 className="mt-1 text-lg font-bold text-slate-950">All inventory items</h2>
                 <p className="mt-1 text-sm text-slate-500">Open an item to edit details, manage stock, and review its movement history.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="print-hidden flex gap-2">
+                <button type="button" disabled={inventoryLoading || Boolean(inventoryError)} onClick={() => printPage('inventory')} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Print inventory</button>
                 <button type="button" onClick={loadInventory} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Refresh items</button>
                 <button type="button" onClick={() => setActiveTab('add')} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Add item</button>
               </div>
@@ -315,7 +375,7 @@ export default function CustodianDashboard({ user, onLogout }) {
             ) : inventoryItems.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No inventory items have been added yet.</div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="print-hidden grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {inventoryItems.map((item) => (
                   <Link key={item.id} to={`/custodian/items/${item.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-600/30">
                     <div className="flex h-44 items-center justify-center bg-slate-100">
@@ -334,23 +394,94 @@ export default function CustodianDashboard({ user, onLogout }) {
                 ))}
               </div>
             )}
-          </section>
-        ) : activeTab === 'ledger' ? (
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
-              <div><h2 className="text-lg font-bold text-slate-950">Stock ledger</h2><p className="mt-1 text-sm text-slate-500">A record of every stock addition, adjustment, and item release.</p></div>
-              <button type="button" onClick={() => loadLedger(ledger?.current_page || 1)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Refresh ledger</button>
-            </div>
-            {ledgerError && <p role="alert" className="m-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{ledgerError}</p>}
-            {ledgerLoading && !ledger ? <p className="p-5 text-sm text-slate-500">Loading stock ledger…</p> : ledger && <MovementTable movements={ledger.data} showItem />}
-            {ledger && ledger.last_page > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
-                <button type="button" disabled={!ledger.prev_page_url || ledgerLoading} onClick={() => loadLedger(ledger.current_page - 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Previous</button>
-                <span className="text-slate-500">Page {ledger.current_page} of {ledger.last_page}</span>
-                <button type="button" disabled={!ledger.next_page_url || ledgerLoading} onClick={() => loadLedger(ledger.current_page + 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Next</button>
+            {!inventoryLoading && (
+              <div className="hidden overflow-x-auto print:block">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-slate-400 text-xs uppercase tracking-wide text-slate-600">
+                      <th className="px-2 py-2">Item code</th>
+                      <th className="px-2 py-2">Item</th>
+                      <th className="px-2 py-2">Category</th>
+                      <th className="px-2 py-2">Stock</th>
+                      <th className="px-2 py-2">Minimum</th>
+                      <th className="px-2 py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventoryItems.map((item) => (
+                      <tr key={item.id} className="border-b border-slate-300">
+                        <td className="px-2 py-2 font-mono">{item.item_code}</td>
+                        <td className="px-2 py-2 font-medium">{item.name}</td>
+                        <td className="px-2 py-2">{item.category?.name || 'Uncategorized'}</td>
+                        <td className="px-2 py-2">{item.stock_quantity}</td>
+                        <td className="px-2 py-2">{item.min_threshold}</td>
+                        <td className="px-2 py-2 capitalize">{item.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>
+        ) : activeTab === 'ledger' ? (
+          <>
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
+                <div><h2 className="text-lg font-bold text-slate-950">Stock ledger</h2><p className="mt-1 text-sm text-slate-500">A record of every stock addition, adjustment, and item release.</p></div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={ledgerPrintLoading} onClick={prepareLedgerPrint} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{ledgerPrintLoading ? 'Preparing…' : 'Prepare print sheet'}</button>
+                  <button type="button" disabled={ledgerLoading} onClick={() => loadLedger(ledger?.current_page || 1)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Refresh ledger</button>
+                </div>
+              </div>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setLedgerPrintRows(null);
+                  setAppliedLedgerFilters({ ...ledgerFilters });
+                }}
+                className="grid gap-3 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4"
+              >
+                <label className="text-sm font-medium text-slate-700">From date<input type="date" value={ledgerFilters.date_from} onChange={(event) => setLedgerFilters((current) => ({ ...current, date_from: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2" /></label>
+                <label className="text-sm font-medium text-slate-700">To date<input type="date" value={ledgerFilters.date_to} onChange={(event) => setLedgerFilters((current) => ({ ...current, date_to: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2" /></label>
+                <label className="text-sm font-medium text-slate-700">Item<select value={ledgerFilters.item_id} onChange={(event) => setLedgerFilters((current) => ({ ...current, item_id: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All items</option>{ledgerOptions.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                <label className="text-sm font-medium text-slate-700">Person<select value={ledgerFilters.user_id} onChange={(event) => setLedgerFilters((current) => ({ ...current, user_id: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All people</option>{ledgerOptions.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
+                <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
+                  <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Apply filters</button>
+                  <button type="button" onClick={() => {
+                    setLedgerFilters(emptyLedgerFilters);
+                    setAppliedLedgerFilters(emptyLedgerFilters);
+                    setLedgerPrintRows(null);
+                  }} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Clear filters</button>
+                </div>
+              </form>
+              {ledgerOptionsError && <p role="alert" className="m-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{ledgerOptionsError}</p>}
+              {ledgerError && <p role="alert" className="m-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{ledgerError}</p>}
+              {ledgerLoading && !ledger ? <p className="p-5 text-sm text-slate-500">Loading stock ledger…</p> : ledger && <MovementTable movements={ledger.data} showItem />}
+              {ledger && ledger.last_page > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
+                  <button type="button" disabled={!ledger.prev_page_url || ledgerLoading} onClick={() => loadLedger(ledger.current_page - 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Previous</button>
+                  <span className="text-slate-500">Page {ledger.current_page} of {ledger.last_page}</span>
+                  <button type="button" disabled={!ledger.next_page_url || ledgerLoading} onClick={() => loadLedger(ledger.current_page + 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Next</button>
+                </div>
+              )}
+            </section>
+            {ledgerPrintRows && (
+              <section className="print-target print-ledger-target rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">SPC SupplyTrack</p>
+                    <h2 className="mt-1 text-xl font-bold text-slate-950">Stock ledger</h2>
+                    <p className="mt-1 text-sm text-slate-500">Prepared {new Date().toLocaleString()} · {ledgerPrintRows.length} matching movements</p>
+                  </div>
+                  <div className="print-hidden flex gap-2">
+                    <button type="button" onClick={() => printPage('ledger')} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Print ledger</button>
+                    <button type="button" onClick={() => setLedgerPrintRows(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Close</button>
+                  </div>
+                </div>
+                <MovementTable movements={ledgerPrintRows} showItem />
+              </section>
+            )}
+          </>
         ) : (
           <form onSubmit={addItem} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <div><p className="text-xs font-bold uppercase tracking-wide text-blue-700">Inventory management</p><h2 className="mt-1 text-xl font-bold text-slate-950">Add a new item</h2><p className="mt-1 text-sm text-slate-500">New stock will be recorded in the inventory ledger.</p></div>
@@ -383,10 +514,10 @@ export default function CustodianDashboard({ user, onLogout }) {
         )}
 
         {pickList && (
-          <section className="print-target rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="print-target print-pick-list-target rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-xs font-bold uppercase tracking-wide text-blue-700">SPC SupplyTrack</p><h2 className="mt-1 text-xl font-bold text-slate-950">Approved requests pick list</h2><p className="mt-1 text-sm text-slate-500">Prepared {new Date().toLocaleString()}</p></div>
-              <div className="print-hidden flex gap-2"><button type="button" onClick={() => window.print()} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Print pick list</button><button type="button" onClick={() => setPickList(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold">Close</button></div>
+              <div className="print-hidden flex gap-2"><button type="button" onClick={() => printPage('pick-list')} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Print pick list</button><button type="button" onClick={() => setPickList(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold">Close</button></div>
             </div>
             {pickList.length === 0 ? <p className="mt-5 text-sm text-slate-500">There are no approved requests to pick.</p> : (
               <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase text-slate-500"><th className="py-3">Request</th><th className="py-3">Student</th><th className="py-3">Item</th><th className="py-3 text-right">Qty</th><th className="py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{pickList.flatMap((request) => (request.request_items || request.requestItems || []).map((entry) => <tr key={`${request.id}-${entry.id}`}><td className="py-3">#{request.id}</td><td className="py-3">{request.user?.name}</td><td className="py-3">{entry.item?.name}</td><td className="py-3 text-right font-semibold">{entry.quantity}</td><td className="py-3 capitalize">{request.status}</td></tr>))}</tbody></table></div>
