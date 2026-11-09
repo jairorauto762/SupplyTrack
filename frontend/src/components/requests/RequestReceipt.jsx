@@ -1,9 +1,23 @@
+import ReportExportMenu from './ReportExportMenu';
+
 export default function RequestReceipt({ request, onClose }) {
   if (!request) {
     return null;
   }
 
   const items = request.request_items || request.requestItems || [];
+  const releasedAt = request.released_at ? new Date(request.released_at).toLocaleString() : 'today';
+  const report = {
+    title: `Release receipt - Request #${request.id}`,
+    fileName: `supplytrack-receipt-${request.id}`,
+    details: [
+      { label: 'Released', value: releasedAt },
+      { label: 'Requested by', value: request.user?.name || 'Student' },
+      { label: 'Purpose', value: request.purpose || 'Not specified' },
+    ],
+    columns: ['Item', 'Quantity released'],
+    rows: items.map((entry) => [entry.item?.name || 'Item', entry.quantity]),
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-6">
@@ -12,12 +26,10 @@ export default function RequestReceipt({ request, onClose }) {
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-brand-700">SPC SupplyTrack</p>
           <h2 id="receipt-title" className="mt-2 text-xl font-bold text-slate-950">Release receipt · Request #{request.id}</h2>
-          <p className="mt-1 text-sm text-slate-500">Released {request.released_at ? new Date(request.released_at).toLocaleString() : 'today'}</p>
+          <p className="mt-1 text-sm text-slate-500">Released {releasedAt}</p>
         </div>
         <div className="print-hidden flex gap-2">
-          <button type="button" onClick={() => window.print()} className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-            Print receipt
-          </button>
+          <ReportExportMenu report={report} />
           {onClose && (
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               Close
