@@ -25,6 +25,7 @@ export default function InventoryDashboard({ user, onLogout }) {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [itemsError, setItemsError] = useState('');
   const [dashboardError, setDashboardError] = useState('');
+  const [summaryError, setSummaryError] = useState('');
   const [reloadItems, setReloadItems] = useState(0);
   const [requestCart, setRequestCart] = useState(loadRequestCart);
   const [purpose, setPurpose] = useState('');
@@ -85,7 +86,7 @@ export default function InventoryDashboard({ user, onLogout }) {
       .then((response) => setSummary(response.data))
       .catch((error) => {
         if (!axios.isCancel(error)) {
-          setDashboardError('Could not load inventory totals. Please refresh the page to try again.');
+          setSummaryError('Could not load inventory totals. Please try again.');
         }
       })
       .finally(() => {
@@ -105,7 +106,10 @@ export default function InventoryDashboard({ user, onLogout }) {
         params: filters,
         signal: controller.signal,
       })
-        .then((response) => setItems(response.data))
+        .then((response) => {
+          setItems(response.data);
+          setItemsError('');
+        })
         .catch((error) => {
           if (!axios.isCancel(error)) {
             setItemsError('Could not load inventory items from the server.');
@@ -123,6 +127,40 @@ export default function InventoryDashboard({ user, onLogout }) {
       controller.abort();
     };
   }, [filters, reloadItems]);
+
+  useEffect(() => {
+    let summaryController;
+
+    const refreshInventory = () => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      setReloadItems((count) => count + 1);
+      summaryController?.abort();
+      summaryController = new AbortController();
+
+      api.get('/dashboard/summary', { signal: summaryController.signal })
+        .then((response) => {
+          setSummary(response.data);
+          setSummaryError('');
+        })
+        .catch((error) => {
+          if (!axios.isCancel(error)) {
+            setSummaryError('Could not refresh inventory totals. Please try again.');
+          }
+        });
+    };
+
+    const timer = window.setInterval(refreshInventory, 10000);
+    document.addEventListener('visibilitychange', refreshInventory);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshInventory);
+      summaryController?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     loadRequests();
@@ -264,9 +302,9 @@ export default function InventoryDashboard({ user, onLogout }) {
           </button>
         </nav>
 
-        {dashboardError && (
+        {(dashboardError || summaryError) && (
           <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {dashboardError}
+            {dashboardError || summaryError}
           </div>
         )}
 
