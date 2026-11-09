@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import api from '../api/axios';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
-import StatusBadge from '../components/inventory/StatusBadge';
-import StockBadge from '../components/inventory/StockBadge';
-import { addItemToRequestCart } from '../components/requests/requestCart';
+import api from '../../api/axios';
+import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import StatusBadge from '../../components/inventory/StatusBadge';
+import StockBadge from '../../components/inventory/StockBadge';
+import { addItemToRequestCart } from '../../components/requests/requestCart';
 
 export default function ItemDetails({ user, onLogout }) {
   const { itemId } = useParams();
@@ -48,7 +48,7 @@ export default function ItemDetails({ user, onLogout }) {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <DashboardHeader user={user} onLogout={onLogout} />
       <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-        <Link to={user.role === 'custodian' ? '/custodian?section=items' : '/inventory'} className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
+        <Link to="/inventory" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
           <span aria-hidden="true">←</span> Back to inventory
         </Link>
 
@@ -110,19 +110,17 @@ export default function ItemDetails({ user, onLogout }) {
                   </section>
                 )}
 
-                {user.role === 'student' && (
-                  <div className="mt-auto pt-7">
-                    <button
-                      type="button"
-                      onClick={addToRequest}
-                      disabled={item.stock_quantity < 1 || item.status !== 'available'}
-                      className="w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
-                    </button>
-                    <p className="mt-2 text-center text-xs text-slate-500">Stock is checked again when you submit your request.</p>
-                  </div>
-                )}
+                <div className="mt-auto pt-7">
+                  <button
+                    type="button"
+                    onClick={addToRequest}
+                    disabled={item.stock_quantity < 1 || item.status !== 'available'}
+                    className="w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
+                  </button>
+                  <p className="mt-2 text-center text-xs text-slate-500">Stock is checked again when you submit your request.</p>
+                </div>
               </div>
             </div>
           </article>

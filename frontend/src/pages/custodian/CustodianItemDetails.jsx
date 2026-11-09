@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import api from '../api/axios';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
-import MovementTable from '../components/inventory/MovementTable';
-import StatusBadge from '../components/inventory/StatusBadge';
-import StockBadge from '../components/inventory/StockBadge';
+import api from '../../api/axios';
+import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import MovementTable from '../../components/inventory/MovementTable';
+import StatusBadge from '../../components/inventory/StatusBadge';
+import StockBadge from '../../components/inventory/StockBadge';
 
 const emptyForm = {
   category_id: '',
