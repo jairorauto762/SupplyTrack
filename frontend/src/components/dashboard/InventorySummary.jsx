@@ -3,8 +3,8 @@ const metrics = [
     key: 'total_items',
     label: 'Total items',
     description: 'Tracked in inventory',
-    accent: 'bg-blue-600',
-    iconColor: 'bg-blue-50 text-blue-700',
+    accent: 'bg-brand-600',
+    iconColor: 'bg-brand-50 text-brand-700',
     icon: 'M4 7h16M4 12h16M4 17h16',
   },
   {

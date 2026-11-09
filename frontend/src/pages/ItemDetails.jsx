@@ -48,7 +48,7 @@ export default function ItemDetails({ user, onLogout }) {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <DashboardHeader user={user} onLogout={onLogout} />
       <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-        <Link to={user.role === 'custodian' ? '/custodian?section=items' : '/inventory'} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:underline">
+        <Link to={user.role === 'custodian' ? '/custodian?section=items' : '/inventory'} className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
           <span aria-hidden="true">←</span> Back to inventory
         </Link>
 
@@ -116,7 +116,7 @@ export default function ItemDetails({ user, onLogout }) {
                       type="button"
                       onClick={addToRequest}
                       disabled={item.stock_quantity < 1 || item.status !== 'available'}
-                      className="w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded-xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
                     </button>

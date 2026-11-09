@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axios';
 import { syncPushSubscription } from './api/pushNotifications';
 import Login from './pages/Login';
@@ -98,6 +98,16 @@ function PublicOnly({ children }) {
   return token ? <Navigate to={getDashboardPath()} replace /> : children;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
+
+  return null;
+}
+
 function Inventory() {
   const navigate = useNavigate();
   const user = getStoredUser() || {};
@@ -120,6 +130,7 @@ function Inventory() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public routes redirect authenticated users to the workspace for their role. */}
         <Route

@@ -90,12 +90,12 @@ export default function Register({ role = 'student' }) {
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       {/* Brand Panel - Desktop Only */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-900 p-12 text-white relative overflow-hidden">
+      <div className="relative hidden overflow-hidden bg-[#390403] p-12 text-white lg:flex lg:w-1/2 flex-col justify-between">
         {/* Background grid texture */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#660806_1px,transparent_1px),linear-gradient(to_bottom,#660806_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
 
         <div className="relative z-10 flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 font-bold text-white shadow-md">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
@@ -114,15 +114,15 @@ export default function Register({ role = 'student' }) {
           {/* Quick Benefits List */}
           <div className="pt-4 space-y-3 text-sm font-medium text-slate-300">
             <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/20 text-brand-400">✓</span>
               <span>Quick departmental account registration</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/20 text-brand-400">✓</span>
               <span>Direct access to campus inventory catalog</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">✓</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/20 text-brand-400">✓</span>
               <span>Automated request status updates</span>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function Register({ role = 'student' }) {
           
           {/* Mobile Brand Header */}
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white font-bold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
@@ -183,7 +183,7 @@ export default function Register({ role = 'student' }) {
                 required
                 value={form.name}
                 onChange={change}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
               />
             </div>
 
@@ -201,7 +201,7 @@ export default function Register({ role = 'student' }) {
                 required
                 value={form.email}
                 onChange={change}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
               />
             </div>
 
@@ -221,7 +221,7 @@ export default function Register({ role = 'student' }) {
                   required
                   value={form.password}
                   onChange={change}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
                 />
                 <button
                   type="button"
@@ -260,7 +260,7 @@ export default function Register({ role = 'student' }) {
                   required
                   value={form.password_confirmation}
                   onChange={change}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
                 />
                 <button
                   type="button"
@@ -286,7 +286,7 @@ export default function Register({ role = 'student' }) {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <>
@@ -306,7 +306,7 @@ export default function Register({ role = 'student' }) {
             Already have a {isCustodian ? 'custodian' : 'student'} account?{' '}
             <Link
               to={isCustodian ? '/custodian/login' : '/login'}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+              className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
             >
               Log in
             </Link>
