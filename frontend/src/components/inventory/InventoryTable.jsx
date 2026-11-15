@@ -4,11 +4,11 @@ import StatusBadge from './StatusBadge';
 
 function ItemIdentity({ item }) {
   return (
-    <Link to={`/inventory/items/${item.id}`} className="block min-w-0 rounded focus:outline-none focus:ring-2 focus:ring-blue-600/30">
+    <Link to={`/inventory/items/${item.id}`} className="block min-w-0 rounded focus:outline-none focus:ring-2 focus:ring-brand-600/30">
       <p className="truncate font-semibold text-slate-900">{item.name}</p>
       {item.description && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{item.description}</p>}
       <p className="mt-1 font-mono text-[11px] font-medium tracking-wide text-slate-400">{item.item_code}</p>
-      <span className="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">View item details</span>
+      <span className="mt-1 inline-block text-xs font-semibold text-brand-700 hover:underline">View item details</span>
     </Link>
   );
 }
@@ -104,7 +104,7 @@ export default function InventoryTable({ items, loading, filtered, error, onRetr
                     <td className="px-5 py-4"><StatusBadge status={item.status} /></td>
                     {onRequest && (
                       <td className="px-5 py-4">
-                        <button type="button" disabled={item.stock_quantity < 1 || item.status !== 'available'} onClick={() => onRequest(item)} className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+                        <button type="button" disabled={item.stock_quantity < 1 || item.status !== 'available'} onClick={() => onRequest(item)} className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50">
                           Add to request
                         </button>
                       </td>
@@ -119,7 +119,7 @@ export default function InventoryTable({ items, loading, filtered, error, onRetr
               <div key={item.id} className="space-y-2">
                 <ItemCard item={item} />
                 {onRequest && (
-                  <button type="button" disabled={item.stock_quantity < 1 || item.status !== 'available'} onClick={() => onRequest(item)} className="min-h-10 w-full rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="button" disabled={item.stock_quantity < 1 || item.status !== 'available'} onClick={() => onRequest(item)} className="min-h-10 w-full rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50">
                     Add to request
                   </button>
                 )}

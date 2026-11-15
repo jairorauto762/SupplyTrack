@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../api/axios';
+import api from '../../api/axios';
 
 export default function Login({ role = 'student' }) {
   const isCustodian = role === 'custodian';
@@ -30,12 +30,12 @@ export default function Login({ role = 'student' }) {
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       {/* Brand Panel - Desktop Only */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-900 p-12 text-white relative overflow-hidden">
+      <div className="relative hidden overflow-hidden bg-[#390403] p-12 text-white lg:flex lg:w-1/2 flex-col justify-between">
         {/* Simple background grid texture */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#660806_1px,transparent_1px),linear-gradient(to_bottom,#660806_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
 
         <div className="relative z-10 flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 font-bold text-white shadow-md">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
@@ -64,7 +64,7 @@ export default function Login({ role = 'student' }) {
           
           {/* Mobile Brand Header */}
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white font-bold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
@@ -106,7 +106,7 @@ export default function Login({ role = 'student' }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
               />
             </div>
 
@@ -125,7 +125,7 @@ export default function Login({ role = 'student' }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
                 />
                 <button
                   type="button"
@@ -151,7 +151,7 @@ export default function Login({ role = 'student' }) {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <>
@@ -171,7 +171,7 @@ export default function Login({ role = 'student' }) {
             {isCustodian ? "Don't have a custodian account? " : "Don't have a student account? "}
             <Link
               to={isCustodian ? '/custodian/register' : '/register'}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+              className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
             >
               {isCustodian ? 'Register as custodian' : 'Sign up'}
             </Link>
@@ -180,7 +180,7 @@ export default function Login({ role = 'student' }) {
             {isCustodian ? 'Are you a student? ' : 'Are you a custodian? '}
             <Link
               to={isCustodian ? '/login' : '/custodian/login'}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+              className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
             >
               {isCustodian ? 'Student login' : 'Custodian login'}
             </Link>

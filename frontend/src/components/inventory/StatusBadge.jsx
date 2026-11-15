@@ -1,5 +1,5 @@
 const statusStyles = {
-  available: 'bg-blue-50 text-blue-700 ring-blue-600/15',
+  available: 'bg-brand-50 text-brand-700 ring-brand-600/15',
   unavailable: 'bg-slate-100 text-slate-600 ring-slate-500/15',
   discontinued: 'bg-rose-50 text-rose-700 ring-rose-600/15',
 };

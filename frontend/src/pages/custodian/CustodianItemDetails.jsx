@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import api from '../api/axios';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
-import MovementTable from '../components/inventory/MovementTable';
-import StatusBadge from '../components/inventory/StatusBadge';
-import StockBadge from '../components/inventory/StockBadge';
+import api from '../../api/axios';
+import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import MovementTable from '../../components/inventory/MovementTable';
+import StatusBadge from '../../components/inventory/StatusBadge';
+import StockBadge from '../../components/inventory/StockBadge';
 
 const emptyForm = {
   category_id: '',
@@ -154,7 +154,7 @@ export default function CustodianItemDetails({ user, onLogout }) {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <DashboardHeader user={user} onLogout={onLogout} />
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
-        <Link to="/custodian?section=items" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:underline">
+        <Link to="/custodian?section=items" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
           <span aria-hidden="true">←</span> Back to inventory
         </Link>
         {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</p>}
@@ -196,7 +196,7 @@ export default function CustodianItemDetails({ user, onLogout }) {
                     <label className="text-sm font-medium text-slate-700 sm:col-span-2">Specifications<textarea name="specs" value={form.specs} onChange={changeForm} rows={2} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
                     <label className="text-sm font-medium text-slate-700 sm:col-span-2">Description<textarea name="description" value={form.description} onChange={changeForm} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
                   </div>
-                  <button type="submit" disabled={saving} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{saving ? 'Saving…' : 'Save item changes'}</button>
+                  <button type="submit" disabled={saving} className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50">{saving ? 'Saving…' : 'Save item changes'}</button>
                 </form>
 
                 <form onSubmit={addStock} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -217,9 +217,9 @@ export default function CustodianItemDetails({ user, onLogout }) {
               {history ? <MovementTable movements={history.data} /> : !historyError && <p className="p-5 text-sm text-slate-500">Loading movement history…</p>}
               {history?.last_page > 1 && (
                 <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
-                  <button type="button" disabled={!history.prev_page_url} onClick={() => loadHistory(history.current_page - 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Previous</button>
+                  <button type="button" disabled={!history.prev_page_url} onClick={() => loadHistory(history.current_page - 1)} className="font-semibold text-brand-700 disabled:text-slate-400">Previous</button>
                   <span className="text-slate-500">Page {history.current_page} of {history.last_page}</span>
-                  <button type="button" disabled={!history.next_page_url} onClick={() => loadHistory(history.current_page + 1)} className="font-semibold text-blue-700 disabled:text-slate-400">Next</button>
+                  <button type="button" disabled={!history.next_page_url} onClick={() => loadHistory(history.current_page + 1)} className="font-semibold text-brand-700 disabled:text-slate-400">Next</button>
                 </div>
               )}
             </section>
