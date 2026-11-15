@@ -8,7 +8,7 @@ const formats = [
   { value: 'print', label: 'Print' },
 ];
 
-export default function ReportExportMenu({ report }) {
+export default function ReportExportMenu({ report, buttonLabel = 'Export' }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -37,7 +37,7 @@ export default function ReportExportMenu({ report }) {
         onClick={() => setOpen((current) => !current)}
         className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50"
       >
-        {exporting ? 'Preparing…' : 'Export'}
+        {exporting ? 'Preparing…' : buttonLabel}
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-10 mt-2 min-w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">

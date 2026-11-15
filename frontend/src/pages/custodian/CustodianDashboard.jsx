@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import InventorySummary from '../../components/dashboard/InventorySummary';
+import InventoryInsights from '../../components/dashboard/InventoryInsights';
 import RequestReceipt from '../../components/requests/RequestReceipt';
 import AddItemForm from './components/AddItemForm';
 import ItemsPanel from './components/ItemsPanel';
@@ -13,6 +15,9 @@ export default function CustodianDashboard({ user, onLogout }) {
   const [searchParams] = useSearchParams();
   const [requests, setRequests] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [inventorySummary, setInventorySummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
   const [activeTab, setActiveTab] = useState(searchParams.get('section') === 'items' ? 'items' : 'requests');
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryLoading, setInventoryLoading] = useState(true);
@@ -23,9 +28,6 @@ export default function CustodianDashboard({ user, onLogout }) {
   const [receipt, setReceipt] = useState(null);
   const [pickList, setPickList] = useState(null);
   const [pickListError, setPickListError] = useState('');
-  const [ledger, setLedger] = useState(null);
-  const [ledgerError, setLedgerError] = useState('');
-  const [ledgerLoading, setLedgerLoading] = useState(false);
 
   const loadRequests = useCallback(async () => {
     try {
@@ -49,16 +51,15 @@ export default function CustodianDashboard({ user, onLogout }) {
     }
   }, []);
 
-  const loadLedger = useCallback(async (page = 1) => {
-    setLedgerLoading(true);
+  const loadSummary = useCallback(async () => {
     try {
-      const response = await api.get(`/custodian/ledger?page=${page}`);
-      setLedger(response.data);
-      setLedgerError('');
+      const response = await api.get('/dashboard/summary');
+      setInventorySummary(response.data);
+      setSummaryError('');
     } catch (error) {
-      setLedgerError(error.response?.data?.message || 'Could not load the stock ledger. Please try again.');
+      setSummaryError(error.response?.data?.message || 'Could not load inventory insights. Please try again.');
     } finally {
-      setLedgerLoading(false);
+      setSummaryLoading(false);
     }
   }, []);
 
@@ -70,20 +71,14 @@ export default function CustodianDashboard({ user, onLogout }) {
     const initialRequestLoad = window.setTimeout(loadRequests, 0);
     const requestTimer = window.setInterval(loadRequests, 15000);
     const initialInventoryLoad = window.setTimeout(loadInventory, 0);
+    const initialSummaryLoad = window.setTimeout(loadSummary, 0);
     return () => {
       window.clearTimeout(initialRequestLoad);
       window.clearInterval(requestTimer);
       window.clearTimeout(initialInventoryLoad);
+      window.clearTimeout(initialSummaryLoad);
     };
-  }, [loadInventory, loadRequests]);
-
-  useEffect(() => {
-    if (activeTab === 'ledger') {
-      const initialLedgerLoad = window.setTimeout(loadLedger, 0);
-      return () => window.clearTimeout(initialLedgerLoad);
-    }
-    return undefined;
-  }, [activeTab, loadLedger]);
+  }, [loadInventory, loadRequests, loadSummary]);
 
   const runRequestAction = async (request, action) => {
     setBusyRequest(request.id);
@@ -122,6 +117,11 @@ export default function CustodianDashboard({ user, onLogout }) {
     }
   };
 
+  const handleRestocked = (updatedItem) => {
+    setInventoryItems((items) => items.map((item) => item.id === updatedItem.id ? updatedItem : item));
+    loadSummary();
+  };
+
   const pendingCount = requests.filter((request) => request.status === 'pending').length;
   const activeRequestsCount = requests.filter((request) => ['approved', 'ready'].includes(request.status)).length;
 
@@ -155,12 +155,17 @@ export default function CustodianDashboard({ user, onLogout }) {
         </nav>
 
         {activeTab === 'requests' && (
-          <RequestsPanel
-            requests={requests}
-            busyRequest={busyRequest}
-            onAction={handleRequestAction}
-            onRefresh={loadRequests}
-          />
+          <>
+            <InventorySummary summary={inventorySummary} loading={summaryLoading} />
+            {summaryError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{summaryError}</p>}
+            {!summaryLoading && inventorySummary && <InventoryInsights summary={inventorySummary} itemLinkPrefix="/custodian/items" />}
+            <RequestsPanel
+              requests={requests}
+              busyRequest={busyRequest}
+              onAction={handleRequestAction}
+              onRefresh={loadRequests}
+            />
+          </>
         )}
         {activeTab === 'items' && (
           <ItemsPanel
@@ -169,16 +174,11 @@ export default function CustodianDashboard({ user, onLogout }) {
             error={inventoryError}
             onRefresh={loadInventory}
             onAdd={() => setActiveTab('add')}
+            onRestocked={handleRestocked}
           />
         )}
         {activeTab === 'ledger' && (
-          <LedgerPanel
-            ledger={ledger}
-            error={ledgerError}
-            loading={ledgerLoading}
-            onRefresh={() => loadLedger(ledger?.current_page || 1)}
-            onPageChange={loadLedger}
-          />
+          <LedgerPanel />
         )}
         {activeTab === 'add' && (
           <AddItemForm

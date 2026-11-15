@@ -1,3 +1,5 @@
+import printPage from './printPage';
+
 function safeFileName(value) {
   return value
     .toLowerCase()
@@ -112,11 +114,15 @@ async function exportDocx({ title, details, columns, rows, baseName }) {
   downloadBlob(await Packer.toBlob(doc), `${baseName}.docx`);
 }
 
-export async function exportReport({ format, title, fileName, details = [], columns, rows }) {
+export async function exportReport({ format, title, fileName, details = [], columns, rows, printTarget }) {
   const baseName = safeFileName(fileName || title);
 
   if (format === 'print') {
-    window.print();
+    if (printTarget) {
+      printPage(printTarget);
+    } else {
+      window.print();
+    }
   } else if (format === 'pdf') {
     await exportPdf({ title, details, columns, rows, baseName });
   } else if (format === 'docx') {

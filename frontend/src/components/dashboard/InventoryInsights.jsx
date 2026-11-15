@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 export default function InventoryInsights({ summary, lowStockItems: lowStockItemsOverride, itemLinkPrefix = '/inventory/items' }) {
   const lowStockItems = lowStockItemsOverride ?? summary?.low_stock_items ?? [];
   const topRequestedItems = summary?.top_requested_items || [];
+  const lowStockCount = Number(summary?.low_stock ?? lowStockItems.length) + Number(summary?.out_of_stock ?? 0);
 
   return (
     <section className="grid gap-4 lg:grid-cols-2" aria-label="Inventory insights">
@@ -12,7 +13,7 @@ export default function InventoryInsights({ summary, lowStockItems: lowStockItem
             <h2 className="text-lg font-bold text-slate-950">Low-stock items</h2>
             <p className="mt-1 text-sm text-slate-500">Items at or below minimum; showing up to five.</p>
           </div>
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-800">{Number(summary?.low_stock ?? lowStockItems.length).toLocaleString()}</span>
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-800">{lowStockCount.toLocaleString()}</span>
         </div>
         {lowStockItems.length === 0 ? (
           <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No items are currently low in stock.</p>

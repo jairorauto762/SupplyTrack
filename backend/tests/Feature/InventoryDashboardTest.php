@@ -52,19 +52,34 @@ class InventoryDashboardTest extends TestCase
                 'low_stock' => 1,
                 'out_of_stock' => 1,
                 'requests_count' => 0,
-                'low_stock_items' => [[
-                    'id' => Item::where('name', 'Paper')->value('id'),
-                    'is_low_stock' => true,
-                    'category_id' => $category->id,
-                    'item_code' => 'OFF-002',
-                    'name' => 'Paper',
-                    'stock_quantity' => 3,
-                    'min_threshold' => 5,
-                    'category' => [
-                        'id' => $category->id,
-                        'name' => 'Office Supplies',
+                'low_stock_items' => [
+                    [
+                        'id' => Item::where('name', 'Folders')->value('id'),
+                        'is_low_stock' => true,
+                        'category_id' => $category->id,
+                        'item_code' => 'OFF-003',
+                        'name' => 'Folders',
+                        'stock_quantity' => 0,
+                        'min_threshold' => 5,
+                        'category' => [
+                            'id' => $category->id,
+                            'name' => 'Office Supplies',
+                        ],
                     ],
-                ]],
+                    [
+                        'id' => Item::where('name', 'Paper')->value('id'),
+                        'is_low_stock' => true,
+                        'category_id' => $category->id,
+                        'item_code' => 'OFF-002',
+                        'name' => 'Paper',
+                        'stock_quantity' => 3,
+                        'min_threshold' => 5,
+                        'category' => [
+                            'id' => $category->id,
+                            'name' => 'Office Supplies',
+                        ],
+                    ],
+                ],
                 'top_requested_items' => [],
             ]);
     }

@@ -20,7 +20,6 @@ class DashboardController extends Controller
 
         $lowStockItems = Item::query()
             ->with('category:id,name')
-            ->where('stock_quantity', '>', 0)
             ->whereColumn('stock_quantity', '<=', 'min_threshold')
             ->orderBy('stock_quantity')
             ->orderBy('name')
