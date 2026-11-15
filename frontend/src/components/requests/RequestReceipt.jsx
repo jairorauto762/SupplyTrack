@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import printPage from '../../utils/printPage';
-=======
 import ReportExportMenu from './ReportExportMenu';
->>>>>>> 0dc4acc55008b49ae48e9c82bb0f77911a3fe132
 
 export default function RequestReceipt({ request, onClose }) {
   if (!request) {
@@ -24,12 +21,8 @@ export default function RequestReceipt({ request, onClose }) {
   };
 
   return (
-<<<<<<< HEAD
-    <section className="print-target print-receipt-target rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-=======
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-6">
-      <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" className="print-target max-h-[calc(100vh-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:p-7">
->>>>>>> 0dc4acc55008b49ae48e9c82bb0f77911a3fe132
+      <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" className="print-target print-receipt-target max-h-[calc(100vh-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-brand-700">SPC SupplyTrack</p>
@@ -37,13 +30,10 @@ export default function RequestReceipt({ request, onClose }) {
           <p className="mt-1 text-sm text-slate-500">Released {releasedAt}</p>
         </div>
         <div className="print-hidden flex gap-2">
-<<<<<<< HEAD
           <button type="button" onClick={() => printPage('receipt')} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
             Print receipt
           </button>
-=======
           <ReportExportMenu report={report} />
->>>>>>> 0dc4acc55008b49ae48e9c82bb0f77911a3fe132
           {onClose && (
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               Close
