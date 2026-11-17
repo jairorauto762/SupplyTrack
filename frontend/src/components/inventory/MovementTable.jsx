@@ -22,7 +22,7 @@ export default function MovementTable({ movements, showItem = false }) {
             <tr key={movement.id}>
               <td className="whitespace-nowrap px-4 py-3 text-slate-600">{new Date(movement.created_at).toLocaleString()}</td>
               {showItem && <td className="px-4 py-3 text-slate-900">{movement.item?.name || 'Unknown item'} <span className="font-mono text-xs text-slate-500">{movement.item?.item_code}</span></td>}
-              <td className="whitespace-nowrap px-4 py-3 font-medium capitalize text-slate-900">{movement.type === 'release' ? 'Released / taken' : movement.type.replace('_', ' ')}</td>
+              <td className="whitespace-nowrap px-4 py-3 font-medium capitalize text-slate-900">{movement.type === 'release' ? 'Released / taken' : movement.type === 'return' ? 'Returned to stock' : movement.type.replace('_', ' ')}</td>
               <td className={`whitespace-nowrap px-4 py-3 font-semibold ${movement.quantity < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{movement.quantity > 0 ? '+' : ''}{movement.quantity}</td>
               <td className="px-4 py-3 text-slate-700">{movement.balance_after}</td>
               <td className="px-4 py-3 text-slate-700">{movement.user?.name || 'Unknown'}</td>

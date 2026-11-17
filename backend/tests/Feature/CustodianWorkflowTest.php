@@ -24,12 +24,31 @@ class CustodianWorkflowTest extends TestCase
         $this->postJson('/api/register', [
             'name' => 'New User',
             'email' => 'new-user@example.test',
+            'department' => 'Computer Studies',
             'password' => 'password',
             'password_confirmation' => 'password',
             'role' => 'custodian',
         ])
             ->assertCreated()
-            ->assertJsonPath('user.role', 'student');
+            ->assertJsonPath('user.role', 'student')
+            ->assertJsonPath('user.department', 'Computer Studies');
+
+        $this->postJson('/api/register', [
+            'name' => 'Unassigned User',
+            'email' => 'unassigned-user@example.test',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('department');
+
+        $this->postJson('/api/register', [
+            'name' => 'Invalid Department User',
+            'email' => 'invalid-department-user@example.test',
+            'department' => 'Mathematics Department',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('department');
     }
 
     public function test_custodian_registration_creates_a_custodian_account(): void

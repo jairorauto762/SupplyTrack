@@ -5,6 +5,7 @@ import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import RequestReceipt from '../../components/requests/RequestReceipt';
 import { loadRequestCart, saveRequestCart } from '../../components/requests/requestCart';
 import InventorySection from './components/InventorySection';
+import MyReportsSection from './components/MyReportsSection';
 import RequestComposer from './components/RequestComposer';
 import RequestsSection from './components/RequestsSection';
 
@@ -299,6 +300,14 @@ export default function InventoryDashboard({ user, onLogout }) {
             My requests
             {requests.length > 0 && <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800">{requests.length}</span>}
           </button>
+          <button
+            type="button"
+            aria-current={activeView === 'reports' ? 'page' : undefined}
+            onClick={() => setActiveView('reports')}
+            className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeView === 'reports' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            My reports
+          </button>
         </nav>
 
         {(dashboardError || summaryError) && (
@@ -322,7 +331,7 @@ export default function InventoryDashboard({ user, onLogout }) {
             onRetryItems={retryItems}
             onRequestItem={addToRequest}
           />
-        ) : (
+        ) : activeView === 'requests' ? (
           <RequestsSection
             requests={requests}
             error={requestsError}
@@ -331,7 +340,7 @@ export default function InventoryDashboard({ user, onLogout }) {
             onCancel={cancelRequest}
             onViewReceipt={setReceipt}
           />
-        )}
+        ) : <MyReportsSection />}
 
         <RequestComposer
           open={requestComposerOpen}

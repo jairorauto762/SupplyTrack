@@ -3,6 +3,7 @@
 use App\Http\Controllers\api\AuthController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\ItemController;
+use App\Http\Controllers\api\ItemReportController;
 use App\Http\Controllers\api\PushSubscriptionController;
 use App\Http\Controllers\SupplyRequestController;
 use Illuminate\Support\Facades\Route;
@@ -29,11 +30,17 @@ Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
     Route::get('/requests', [SupplyRequestController::class, 'index']);
     Route::post('/requests', [SupplyRequestController::class, 'store']);
     Route::post('/requests/{supplyRequest}/cancel', [SupplyRequestController::class, 'cancel']);
+    Route::post('/items/{item}/reports', [ItemReportController::class, 'store']);
+    Route::get('/my-reports', [ItemReportController::class, 'myReports']);
 });
 
 Route::middleware(['auth:sanctum', 'role:custodian'])->prefix('custodian')->group(function () {
+    Route::get('/request-summary', [DashboardController::class, 'requestSummary']);
+    Route::get('/item-reports', [ItemReportController::class, 'index']);
+    Route::patch('/item-reports/{itemReport}', [ItemReportController::class, 'review']);
     Route::get('/items', [ItemController::class, 'custodianIndex']);
     Route::get('/items/{item}/movements', [ItemController::class, 'movements']);
+    Route::post('/items/{item}/returns', [ItemController::class, 'recordReturn']);
     Route::put('/items/{item}', [ItemController::class, 'update']);
     Route::post('/items/{item}/restock', [ItemController::class, 'restock']);
     Route::get('/ledger/filters', [ItemController::class, 'ledgerFilters']);

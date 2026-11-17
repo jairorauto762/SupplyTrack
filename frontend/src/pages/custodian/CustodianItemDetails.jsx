@@ -40,6 +40,10 @@ export default function CustodianItemDetails({ user, onLogout }) {
   const [restockNotes, setRestockNotes] = useState('');
   const [restockError, setRestockError] = useState('');
   const [restocking, setRestocking] = useState(false);
+  const [returnQuantity, setReturnQuantity] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
+  const [returnError, setReturnError] = useState('');
+  const [returning, setReturning] = useState(false);
 
   const loadHistory = useCallback(async (page = 1) => {
     try {
@@ -150,6 +154,29 @@ export default function CustodianItemDetails({ user, onLogout }) {
     }
   };
 
+  const recordReturn = async (event) => {
+    event.preventDefault();
+    setReturnError('');
+    setSuccess('');
+    setReturning(true);
+    try {
+      const response = await api.post(`/custodian/items/${itemId}/returns`, {
+        quantity: Number(returnQuantity),
+        notes: returnNotes,
+      });
+      setItem(response.data.data);
+      setForm((current) => ({ ...current, stock_quantity: String(response.data.data.stock_quantity) }));
+      setReturnQuantity('');
+      setReturnNotes('');
+      setSuccess(`Returned items were put back into stock. New quantity: ${response.data.data.stock_quantity}.`);
+      await loadHistory();
+    } catch (requestError) {
+      setReturnError(errorMessage(requestError, 'Could not record this item return.'));
+    } finally {
+      setReturning(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <DashboardHeader user={user} onLogout={onLogout} />
@@ -208,11 +235,21 @@ export default function CustodianItemDetails({ user, onLogout }) {
                   </div>
                   <button type="submit" disabled={restocking} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{restocking ? 'Adding stock…' : 'Add stock'}</button>
                 </form>
+
+                <form onSubmit={recordReturn} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div><h2 className="text-lg font-bold text-slate-950">Record returned items</h2><p className="mt-1 text-sm text-slate-500">Returned quantities are added back to inventory and marked as returns in the ledger.</p></div>
+                  {returnError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{returnError}</p>}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="text-sm font-medium text-slate-700">Quantity returned<input required type="number" min="1" step="1" max="2147483647" value={returnQuantity} onChange={(event) => setReturnQuantity(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+                    <label className="text-sm font-medium text-slate-700">Notes (optional)<input value={returnNotes} onChange={(event) => setReturnNotes(event.target.value)} maxLength={255} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+                  </div>
+                  <button type="submit" disabled={returning} className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50">{returning ? 'Recording return…' : 'Put returned items in stock'}</button>
+                </form>
               </div>
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 p-5"><h2 className="text-lg font-bold text-slate-950">Item movement history</h2><p className="mt-1 text-sm text-slate-500">Every stock addition, adjustment, and release for this item.</p></div>
+              <div className="border-b border-slate-200 p-5"><h2 className="text-lg font-bold text-slate-950">Item movement history</h2><p className="mt-1 text-sm text-slate-500">Every stock addition, return, adjustment, and release for this item.</p></div>
               {historyError && <p role="alert" className="m-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{historyError}</p>}
               {history ? <MovementTable movements={history.data} /> : !historyError && <p className="p-5 text-sm text-slate-500">Loading movement history…</p>}
               {history?.last_page > 1 && (

@@ -216,13 +216,47 @@ class ItemController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'item_id' => ['nullable', 'integer', 'exists:items,id'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'type' => ['nullable', Rule::in(['stock_in', 'release', 'return', 'adjustment'])],
         ]);
 
         return LedgerMovement::with(['item:id,name,item_code', 'user:id,name'])
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
             ->when($filters['item_id'] ?? null, fn ($query, $itemId) => $query->where('item_id', $itemId))
-            ->when($filters['user_id'] ?? null, fn ($query, $userId) => $query->where('user_id', $userId));
+            ->when($filters['user_id'] ?? null, fn ($query, $userId) => $query->where('user_id', $userId))
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type));
+    }
+
+    public function recordReturn(Request $request, Item $item)
+    {
+        $data = $request->validate([
+            'quantity' => 'required|integer|min:1|max:2147483647',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        $updatedItem = DB::transaction(function () use ($data, $item, $request) {
+            $lockedItem = Item::query()->lockForUpdate()->findOrFail($item->id);
+
+            if ($lockedItem->stock_quantity > 2147483647 - $data['quantity']) {
+                abort(response()->json(['message' => 'This return exceeds the maximum inventory quantity.'], 422));
+            }
+
+            $lockedItem->stock_quantity += $data['quantity'];
+            $lockedItem->save();
+
+            LedgerMovement::create([
+                'item_id' => $lockedItem->id,
+                'user_id' => $request->user()->id,
+                'type' => 'return',
+                'quantity' => $data['quantity'],
+                'balance_after' => $lockedItem->stock_quantity,
+                'notes' => $data['notes'] ?? 'Returned items put back into stock',
+            ]);
+
+            return $lockedItem->load('category');
+        });
+
+        return response()->json(['data' => $updatedItem]);
     }
 
     public function store(Request $request)

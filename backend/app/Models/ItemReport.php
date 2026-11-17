@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ItemReport extends Model
 {
-    protected $fillable = ['item_id', 'user_id', 'issue_description', 'status'];
+    protected $fillable = ['item_id', 'user_id', 'issue_description', 'status', 'custodian_note', 'reviewed_at'];
 
     public function item()
     {

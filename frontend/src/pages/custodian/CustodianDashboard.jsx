@@ -6,6 +6,8 @@ import InventorySummary from '../../components/dashboard/InventorySummary';
 import InventoryInsights from '../../components/dashboard/InventoryInsights';
 import RequestReceipt from '../../components/requests/RequestReceipt';
 import AddItemForm from './components/AddItemForm';
+import DepartmentRequestSummary from './components/DepartmentRequestSummary';
+import ItemReportsPanel from './components/ItemReportsPanel';
 import ItemsPanel from './components/ItemsPanel';
 import LedgerPanel from './components/LedgerPanel';
 import PickListDialog from './components/PickListDialog';
@@ -150,6 +152,7 @@ export default function CustodianDashboard({ user, onLogout }) {
             Requests {pendingCount > 0 && <span className="ml-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-800">{pendingCount}</span>}
           </button>
           <button type="button" onClick={() => setActiveTab('items')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'items' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>All items</button>
+          <button type="button" onClick={() => setActiveTab('reports')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'reports' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Item reports</button>
           <button type="button" onClick={() => setActiveTab('ledger')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'ledger' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Stock ledger</button>
           <button type="button" onClick={() => setActiveTab('add')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'add' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Add inventory</button>
         </nav>
@@ -159,6 +162,7 @@ export default function CustodianDashboard({ user, onLogout }) {
             <InventorySummary summary={inventorySummary} loading={summaryLoading} />
             {summaryError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{summaryError}</p>}
             {!summaryLoading && inventorySummary && <InventoryInsights summary={inventorySummary} itemLinkPrefix="/custodian/items" />}
+            <DepartmentRequestSummary />
             <RequestsPanel
               requests={requests}
               busyRequest={busyRequest}
@@ -177,6 +181,7 @@ export default function CustodianDashboard({ user, onLogout }) {
             onRestocked={handleRestocked}
           />
         )}
+        {activeTab === 'reports' && <ItemReportsPanel />}
         {activeTab === 'ledger' && (
           <LedgerPanel />
         )}

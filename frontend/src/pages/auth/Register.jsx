@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../api/axios';
 
+const departmentOptions = [
+  'Computer Studies',
+  'Engineering',
+  'Education',
+  'Business',
+  'Nursing',
+  'Registrar',
+  'Library',
+  'Other',
+];
+
 export default function Register({ role = 'student' }) {
   const isCustodian = role === 'custodian';
   const navigate = useNavigate();
@@ -9,6 +20,7 @@ export default function Register({ role = 'student' }) {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    department: '',
     password: '',
     password_confirmation: '',
   });
@@ -41,6 +53,7 @@ export default function Register({ role = 'student' }) {
       const res = await api.post(isCustodian ? '/custodian/register' : '/register', {
         name: form.name.trim(),
         email: form.email.trim(),
+        ...(isCustodian ? {} : { department: form.department.trim() }),
         password: form.password,
         password_confirmation: form.password_confirmation,
       });
@@ -204,6 +217,25 @@ export default function Register({ role = 'student' }) {
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
               />
             </div>
+
+            {!isCustodian && (
+              <div>
+                <label htmlFor="department" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Office or department
+                </label>
+                <select
+                  id="department"
+                  name="department"
+                  required
+                  value={form.department}
+                  onChange={change}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
+                >
+                  <option value="" disabled>Select your office or department</option>
+                  {departmentOptions.map((department) => <option key={department} value={department}>{department}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Password */}
             <div>

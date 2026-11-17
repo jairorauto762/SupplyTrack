@@ -8,13 +8,14 @@ const emptyFilters = {
   date_to: '',
   item_id: '',
   user_id: '',
+  type: '',
 };
 
 function movementRows(movements) {
   return movements.map((movement) => [
     new Date(movement.created_at).toLocaleString(),
     movement.item?.name || 'Unknown item',
-    movement.type === 'release' ? 'Released / taken' : movement.type.replace('_', ' '),
+    movement.type === 'release' ? 'Released / taken' : movement.type === 'return' ? 'Returned to stock' : movement.type.replace('_', ' '),
     movement.quantity,
     movement.balance_after,
     movement.user?.name || 'Unknown',
@@ -87,6 +88,7 @@ export default function LedgerPanel() {
       { label: 'Date to', value: appliedFilters.date_to || 'Any date' },
       { label: 'Item', value: filterOptions.items.find((item) => String(item.id) === appliedFilters.item_id)?.name || 'All items' },
       { label: 'Person', value: filterOptions.people.find((person) => String(person.id) === appliedFilters.user_id)?.name || 'All people' },
+      { label: 'Movement', value: appliedFilters.type === 'return' ? 'Returned items' : 'All movements' },
       { label: 'Matching movements', value: printRows.length },
     ],
     columns: ['Date', 'Item', 'Movement', 'Quantity', 'Balance', 'Person', 'Notes'],
@@ -108,6 +110,7 @@ export default function LedgerPanel() {
           <label className="text-sm font-medium text-slate-700">To date<input type="date" value={filters.date_to} min={filters.date_from || undefined} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2" /></label>
           <label className="text-sm font-medium text-slate-700">Item<select value={filters.item_id} onChange={(event) => setFilters((current) => ({ ...current, item_id: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All items</option>{filterOptions.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="text-sm font-medium text-slate-700">Person<select value={filters.user_id} onChange={(event) => setFilters((current) => ({ ...current, user_id: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All people</option>{filterOptions.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
+          <label className="text-sm font-medium text-slate-700">Movement<select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All movements</option><option value="return">Returned items</option></select></label>
           <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
             <button type="submit" disabled={loading} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">Apply filters</button>
             <button type="button" disabled={loading} onClick={clearFilters} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">Clear filters</button>

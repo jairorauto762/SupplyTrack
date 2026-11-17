@@ -6,9 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    private const DEPARTMENTS = [
+        'Computer Studies',
+        'Engineering',
+        'Education',
+        'Business',
+        'Nursing',
+        'Registrar',
+        'Library',
+        'Other',
+    ];
+
     public function register(Request $request)
     {
         return $this->registerWithRole($request, 'student');
@@ -25,6 +37,9 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
+            'department' => $role === 'student'
+                ? ['required', Rule::in(self::DEPARTMENTS)]
+                : ['nullable', Rule::in(self::DEPARTMENTS)],
         ]);
 
         $user = User::create([
@@ -32,6 +47,7 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => $role,
+            'department' => $data['department'] ?? null,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

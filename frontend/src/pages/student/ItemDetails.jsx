@@ -14,6 +14,11 @@ export default function ItemDetails({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imageFailed, setImageFailed] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,6 +47,26 @@ export default function ItemDetails({ user, onLogout }) {
   const addToRequest = () => {
     addItemToRequestCart(item);
     navigate('/inventory');
+  };
+
+  const submitReport = async (event) => {
+    event.preventDefault();
+    setReportError('');
+    setReportSuccess('');
+    setReportSubmitting(true);
+
+    try {
+      const response = await api.post(`/items/${itemId}/reports`, {
+        issue_description: reportDescription.trim(),
+      });
+      setReportDescription('');
+      setReportSuccess(response.data.message);
+    } catch (requestError) {
+      const errors = requestError.response?.data?.errors;
+      setReportError(errors ? Object.values(errors).flat().join(' ') : requestError.response?.data?.message || 'Could not send this report. Please try again.');
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   return (
@@ -120,10 +145,48 @@ export default function ItemDetails({ user, onLogout }) {
                     {item.stock_quantity < 1 || item.status !== 'available' ? 'Currently unavailable' : 'Add to supply request'}
                   </button>
                   <p className="mt-2 text-center text-xs text-slate-500">Stock is checked again when you submit your request.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportOpen((open) => !open);
+                      setReportError('');
+                      setReportSuccess('');
+                    }}
+                    className="mt-4 w-full text-center text-sm font-semibold text-brand-700 hover:underline"
+                  >
+                    Report incorrect item information
+                  </button>
                 </div>
               </div>
             </div>
           </article>
+        )}
+        {item && reportOpen && (
+          <form onSubmit={submitReport} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">Report an item detail</h2>
+              <p className="mt-1 text-sm text-slate-500">Tell the supply custodian what information is incorrect for {item.name}.</p>
+            </div>
+            {reportError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{reportError}</p>}
+            {reportSuccess && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{reportSuccess}</p>}
+            <label className="block text-sm font-medium text-slate-700">
+              What needs to be corrected?
+              <textarea
+                required
+                minLength={5}
+                maxLength={2000}
+                rows={4}
+                value={reportDescription}
+                onChange={(event) => setReportDescription(event.target.value)}
+                placeholder="Describe the incorrect name, description, specifications, or other item information."
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
+              />
+            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" disabled={reportSubmitting} onClick={() => setReportOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Close</button>
+              <button type="submit" disabled={reportSubmitting} className="rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50">{reportSubmitting ? 'Sending…' : 'Send report'}</button>
+            </div>
+          </form>
         )}
       </main>
     </div>
