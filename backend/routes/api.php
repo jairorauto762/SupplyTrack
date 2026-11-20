@@ -4,6 +4,7 @@ use App\Http\Controllers\api\AuthController;
 use App\Http\Controllers\api\DashboardController;
 use App\Http\Controllers\api\ItemController;
 use App\Http\Controllers\api\ItemReportController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\api\PushSubscriptionController;
 use App\Http\Controllers\SupplyRequestController;
 use Illuminate\Support\Facades\Route;
@@ -27,7 +28,9 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
+    Route::post('/profile', [ProfileController::class, 'update']);
     Route::get('/requests', [SupplyRequestController::class, 'index']);
+    Route::get('/requests/summary', [SupplyRequestController::class, 'summary']);
     Route::post('/requests', [SupplyRequestController::class, 'store']);
     Route::post('/requests/{supplyRequest}/cancel', [SupplyRequestController::class, 'cancel']);
     Route::post('/items/{item}/reports', [ItemReportController::class, 'store']);

@@ -6,7 +6,7 @@ function BoxIcon() {
   );
 }
 
-export default function DashboardHeader({ user, onLogout }) {
+export default function DashboardHeader({ user, onLogout, onEditProfile }) {
   const initials = user.name
     ?.split(/\s+/)
     .filter(Boolean)
@@ -30,9 +30,13 @@ export default function DashboardHeader({ user, onLogout }) {
 
         <div className="flex items-center justify-between gap-3 sm:justify-end sm:gap-5">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-800 ring-1 ring-inset ring-brand-100">
-              {initials}
-            </div>
+            {user.photo_url ? (
+              <img src={user.photo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-inset ring-brand-100" />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-800 ring-1 ring-inset ring-brand-100">
+                {initials}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="max-w-40 truncate text-sm font-semibold text-slate-900 sm:max-w-56">
                 {user.name || 'Account'}
@@ -40,6 +44,15 @@ export default function DashboardHeader({ user, onLogout }) {
               <p className="text-xs capitalize text-slate-500">{user.role || 'User'}</p>
             </div>
           </div>
+          {user.role === 'student' && onEditProfile && (
+            <button
+              type="button"
+              onClick={onEditProfile}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+            >
+              Edit profile
+            </button>
+          )}
           <button
             type="button"
             onClick={onLogout}

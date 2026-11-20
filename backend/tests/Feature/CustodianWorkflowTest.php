@@ -64,6 +64,30 @@ class CustodianWorkflowTest extends TestCase
             ->assertJsonPath('user.role', 'custodian');
     }
 
+    public function test_student_can_update_their_name_course_and_profile_photo(): void
+    {
+        Storage::fake('public');
+        $student = User::factory()->create(['role' => 'student']);
+
+        $response = $this->actingAs($student, 'sanctum')
+            ->post('/api/profile', [
+                'name' => 'Updated Student',
+                'course' => 'Computer Science',
+                'photo' => UploadedFile::fake()->createWithContent(
+                    'profile.png',
+                    base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8ioAAAAASUVORK5CYII=')
+                ),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('user.name', 'Updated Student')
+            ->assertJsonPath('user.course', 'Computer Science');
+
+        $photoPath = $student->fresh()->profile_photo_path;
+        $this->assertNotNull($photoPath);
+        Storage::disk('public')->assertExists($photoPath);
+        $this->assertSame(Storage::disk('public')->url($photoPath), $response->json('user.photo_url'));
+    }
+
     public function test_login_endpoints_only_accept_their_own_role(): void
     {
         $student = User::factory()->create(['name' => 'Test Student', 'role' => 'student']);
@@ -189,6 +213,84 @@ class CustodianWorkflowTest extends TestCase
             ->assertOk();
     }
 
+    public function test_custodian_must_provide_a_decline_reason_and_student_receives_it(): void
+    {
+        $student = User::factory()->create(['role' => 'student']);
+        $custodian = User::factory()->create(['role' => 'custodian']);
+        $supplyRequest = SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Classroom supplies',
+            'status' => 'pending',
+        ]);
+        $pushNotifications = \Mockery::mock(PushNotificationService::class);
+        $pushNotifications->shouldReceive('sendToUser')
+            ->once()
+            ->with(
+                $student->id,
+                'Request declined',
+                "Your supply request #{$supplyRequest->id} was declined. Reason: Not available this term.",
+                '/inventory',
+            );
+        $this->app->instance(PushNotificationService::class, $pushNotifications);
+
+        $this->actingAs($custodian, 'sanctum')
+            ->postJson("/api/custodian/requests/{$supplyRequest->id}/decline")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+
+        $this->postJson("/api/custodian/requests/{$supplyRequest->id}/decline", [
+            'reason' => ' Not available this term. ',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.declined_reason', 'Not available this term.');
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/requests')
+            ->assertOk()
+            ->assertJsonPath('0.status', 'declined')
+            ->assertJsonPath('0.declined_reason', 'Not available this term.');
+    }
+
+    public function test_student_can_see_active_request_count_and_cannot_exceed_the_limit(): void
+    {
+        $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
+        $item = Item::create([
+            'category_id' => $category->id,
+            'item_code' => 'LIMIT-001',
+            'name' => 'Paper',
+            'stock_quantity' => 10,
+        ]);
+        $student = User::factory()->create(['role' => 'student']);
+
+        foreach (['pending', 'approved', 'ready'] as $status) {
+            SupplyRequest::create([
+                'user_id' => $student->id,
+                'purpose' => 'Classroom supplies',
+                'status' => $status,
+            ]);
+        }
+
+        SupplyRequest::create([
+            'user_id' => $student->id,
+            'purpose' => 'Old request',
+            'status' => 'declined',
+        ]);
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/requests/summary')
+            ->assertOk()
+            ->assertExactJson(['active_count' => 3, 'limit' => 3]);
+
+        $this->postJson('/api/requests', [
+            'purpose' => 'More classroom supplies',
+            'items' => [['item_id' => $item->id, 'quantity' => 1]],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'You have 3 of 3 active requests. Complete or cancel an active request before submitting another.');
+
+        $this->assertDatabaseCount('supply_requests', 4);
+    }
+
     public function test_manual_stock_adjustment_sends_out_of_stock_alert_only_when_stock_reaches_zero(): void
     {
         $category = Category::create(['name' => 'Office Supplies', 'slug' => 'office-supplies']);
@@ -288,7 +390,9 @@ class CustodianWorkflowTest extends TestCase
             ->getJson('/api/requests')
             ->assertOk()
             ->assertJsonPath('0.status', 'released')
-            ->assertJsonPath('0.request_items.0.item.name', 'Blue pens');
+            ->assertJsonPath('0.request_items.0.item.name', 'Blue pens')
+            ->assertJsonPath('0.approver.name', $custodian->name)
+            ->assertJsonPath('0.approved_at', fn ($value) => $value !== null);
 
         $this->actingAs($custodian, 'sanctum')
             ->getJson('/api/custodian/ledger')

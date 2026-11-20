@@ -8,6 +8,7 @@ import InventorySection from './components/InventorySection';
 import MyReportsSection from './components/MyReportsSection';
 import RequestComposer from './components/RequestComposer';
 import RequestsSection from './components/RequestsSection';
+import StudentProfileDialog from './components/StudentProfileDialog';
 
 const initialFilters = {
   search: '',
@@ -17,6 +18,7 @@ const initialFilters = {
 };
 
 export default function InventoryDashboard({ user, onLogout }) {
+  const [profileUser, setProfileUser] = useState(user);
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -32,24 +34,31 @@ export default function InventoryDashboard({ user, onLogout }) {
   const [requestError, setRequestError] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [requestSummary, setRequestSummary] = useState(null);
   const [requestsError, setRequestsError] = useState('');
   const [statusNotices, setStatusNotices] = useState([]);
   const [activeView, setActiveView] = useState('inventory');
   const [requestComposerOpen, setRequestComposerOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [cancellingRequest, setCancellingRequest] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const knownRequests = useRef(null);
 
   const loadRequests = useCallback(async () => {
     try {
-      const response = await api.get('/requests');
+      const [response, summaryResponse] = await Promise.all([
+        api.get('/requests'),
+        api.get('/requests/summary'),
+      ]);
       const current = response.data;
 
       if (knownRequests.current) {
         const notices = current
           .filter((request) => knownRequests.current.get(request.id) !== request.status)
           .filter((request) => ['approved', 'ready', 'declined', 'released', 'cancelled'].includes(request.status))
-          .map((request) => `Request #${request.id} is now ${request.status}.`);
+          .map((request) => request.status === 'declined'
+            ? `Request #${request.id} was declined. Reason: ${request.declined_reason || 'No reason was provided.'}`
+            : `Request #${request.id} is now ${request.status}.`);
 
         if (notices.length) {
           setStatusNotices((existing) => [...notices, ...existing].slice(0, 4));
@@ -58,6 +67,7 @@ export default function InventoryDashboard({ user, onLogout }) {
 
       knownRequests.current = new Map(current.map((request) => [request.id, request.status]));
       setRequests(current);
+      setRequestSummary(summaryResponse.data);
       setRequestsError('');
     } catch (error) {
       if (!axios.isCancel(error)) {
@@ -65,6 +75,11 @@ export default function InventoryDashboard({ user, onLogout }) {
       }
     }
   }, []);
+
+  const saveProfile = (updatedUser) => {
+    setProfileUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
 
   const isFiltered = useMemo(
     () => Object.values(filters).some(Boolean),
@@ -202,6 +217,7 @@ export default function InventoryDashboard({ user, onLogout }) {
   };
 
   const hasUnavailableQuantity = requestCart.some(({ item, quantity }) => quantity > item.stock_quantity);
+  const requestLimitReached = requestSummary !== null && requestSummary.active_count >= requestSummary.limit;
 
   const updateCartQuantity = (itemId, quantity) => {
     const parsedQuantity = Number.parseInt(quantity, 10);
@@ -215,6 +231,10 @@ export default function InventoryDashboard({ user, onLogout }) {
   const submitRequest = async (event) => {
     event.preventDefault();
     setRequestError('');
+    if (requestLimitReached) {
+      setRequestError(`You have ${requestSummary.active_count} of ${requestSummary.limit} active requests. Complete or cancel an active request before submitting another.`);
+      return;
+    }
     setRequestLoading(true);
 
     try {
@@ -256,7 +276,7 @@ export default function InventoryDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <DashboardHeader user={user} onLogout={onLogout} />
+      <DashboardHeader user={profileUser} onLogout={onLogout} onEditProfile={() => setProfileOpen(true)} />
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <section className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -267,6 +287,12 @@ export default function InventoryDashboard({ user, onLogout }) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {requestSummary && (
+              <div aria-live="polite" className={`rounded-xl px-3 py-2 text-sm ${requestLimitReached ? 'bg-amber-50 text-amber-900' : 'bg-white text-slate-600'}`}>
+                <span className="font-semibold">Active requests: {requestSummary.active_count} of {requestSummary.limit}</span>
+                {requestLimitReached && <span className="mt-0.5 block text-xs">Complete or cancel a request before submitting another.</span>}
+              </div>
+            )}
             {requestCart.length > 0 && (
               <button
                 type="button"
@@ -349,6 +375,7 @@ export default function InventoryDashboard({ user, onLogout }) {
           purpose={purpose}
           error={requestError}
           hasUnavailableQuantity={hasUnavailableQuantity}
+          requestLimitReached={requestLimitReached}
           onClose={() => setRequestComposerOpen(false)}
           onSubmit={submitRequest}
           onRemoveItem={(itemId) => setRequestCart((current) => current.filter((entry) => entry.item.id !== itemId))}
@@ -356,6 +383,13 @@ export default function InventoryDashboard({ user, onLogout }) {
           onPurposeChange={setPurpose}
         />
         {receipt && <RequestReceipt request={receipt} onClose={() => setReceipt(null)} />}
+        {profileOpen && (
+          <StudentProfileDialog
+            user={profileUser}
+            onClose={() => setProfileOpen(false)}
+            onSaved={saveProfile}
+          />
+        )}
       </main>
     </div>
   );

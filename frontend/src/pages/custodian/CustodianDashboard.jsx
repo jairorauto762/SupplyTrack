@@ -82,11 +82,11 @@ export default function CustodianDashboard({ user, onLogout }) {
     };
   }, [loadInventory, loadRequests, loadSummary]);
 
-  const runRequestAction = async (request, action) => {
+  const runRequestAction = async (request, action, payload = {}) => {
     setBusyRequest(request.id);
     setPageError('');
     try {
-      const response = await api.post(`/custodian/requests/${request.id}/${action}`);
+      const response = await api.post(`/custodian/requests/${request.id}/${action}`, payload);
       await loadRequests();
       if (action === 'release') {
         setReceipt(response.data.data);
@@ -100,9 +100,13 @@ export default function CustodianDashboard({ user, onLogout }) {
 
   const handleRequestAction = (request, action) => {
     if (action === 'decline') {
-      if (window.confirm(`Decline request #${request.id}?`)) {
-        runRequestAction(request, action);
+      const reason = window.prompt(`Enter a reason for declining request #${request.id}:`);
+      if (reason === null) return;
+      if (!reason.trim()) {
+        window.alert('A decline reason is required.');
+        return;
       }
+      runRequestAction(request, action, { reason: reason.trim() });
       return;
     }
 

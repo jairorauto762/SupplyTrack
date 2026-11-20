@@ -21,6 +21,9 @@ export default function RequestsSection({
         </div>
       )}
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+      {!requests.some((request) => request.status === 'pending') && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">Nothing is waiting for you right now.</p>
+      )}
       {requests.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">You have not submitted any requests yet.</p>
       ) : (
@@ -28,7 +31,13 @@ export default function RequestsSection({
           {requests.map((request) => (
             <li key={request.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div><h3 className="font-semibold text-slate-900">Request #{request.id}</h3><p className="mt-1 text-xs text-slate-500">{new Date(request.created_at).toLocaleString()}</p></div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Request #{request.id}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{new Date(request.created_at).toLocaleString()}</p>
+                  {request.approver && request.approved_at && (
+                    <p className="mt-1 text-xs text-slate-600">Approved by {request.approver.name} · {new Date(request.approved_at).toLocaleString()}</p>
+                  )}
+                </div>
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{request.status}</span>
               </div>
               <p className="text-sm text-slate-600">{request.purpose}</p>

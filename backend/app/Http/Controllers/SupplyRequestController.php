@@ -5,37 +5,42 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use App\Models\LedgerMovement;
 use App\Models\SupplyRequest;
+use App\Models\User;
 use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SupplyRequestController extends Controller
 {
+    private const ACTIVE_REQUEST_LIMIT = 3;
+
     public function __construct(private PushNotificationService $pushNotifications) {}
 
     public function index(Request $request)
     {
         return response()->json(
-            SupplyRequest::with(['user:id,name,email', 'requestItems.item.category'])
+            SupplyRequest::with(['approver:id,name', 'user:id,name,email', 'requestItems.item.category'])
                 ->where('user_id', $request->user()->id)
                 ->latest()
                 ->get()
         );
     }
 
-    public function store(Request $request)
+    public function summary(Request $request)
     {
-        $user = $request->user();
-
-        $activeCount = SupplyRequest::where('user_id', $user->id)
+        $activeCount = SupplyRequest::where('user_id', $request->user()->id)
             ->whereIn('status', ['pending', 'approved', 'ready'])
             ->count();
 
-        if ($activeCount >= 3) {
-            return response()->json([
-                'message' => 'Active request limit reached. You can only have 3 active requests at once.',
-            ], 422);
-        }
+        return response()->json([
+            'active_count' => $activeCount,
+            'limit' => self::ACTIVE_REQUEST_LIMIT,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $user = $request->user();
 
         $validated = $request->validate([
             'purpose' => 'required|string|max:500',
@@ -45,6 +50,18 @@ class SupplyRequestController extends Controller
         ]);
 
         $supplyRequest = DB::transaction(function () use ($user, $validated) {
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            $activeCount = SupplyRequest::where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'approved', 'ready'])
+                ->count();
+
+            if ($activeCount >= self::ACTIVE_REQUEST_LIMIT) {
+                abort(response()->json([
+                    'message' => "You have {$activeCount} of ".self::ACTIVE_REQUEST_LIMIT.' active requests. Complete or cancel an active request before submitting another.',
+                ], 422));
+            }
+
             $items = Item::query()
                 ->whereIn('id', collect($validated['items'])->pluck('item_id'))
                 ->lockForUpdate()
@@ -146,12 +163,12 @@ class SupplyRequestController extends Controller
             'approved_at' => now(),
         ]);
 
-        return response()->json(['data' => $supplyRequest->load(['user:id,name,email', 'requestItems.item.category'])]);
+        return response()->json(['data' => $supplyRequest->load(['approver:id,name', 'user:id,name,email', 'requestItems.item.category'])]);
     }
 
     public function decline(Request $request, SupplyRequest $supplyRequest)
     {
-        $data = $request->validate(['reason' => 'nullable|string|max:500']);
+        $data = $request->validate(['reason' => 'required|string|max:500']);
 
         if ($supplyRequest->status !== 'pending') {
             return response()->json(['message' => 'Only pending requests can be declined.'], 422);
@@ -159,8 +176,15 @@ class SupplyRequestController extends Controller
 
         $supplyRequest->update([
             'status' => 'declined',
-            'declined_reason' => $data['reason'] ?? null,
+            'declined_reason' => trim($data['reason']),
         ]);
+
+        $this->pushNotifications->sendToUser(
+            $supplyRequest->user_id,
+            'Request declined',
+            "Your supply request #{$supplyRequest->id} was declined. Reason: {$supplyRequest->declined_reason}",
+            '/inventory',
+        );
 
         return response()->json(['data' => $supplyRequest->load(['user:id,name,email', 'requestItems.item.category'])]);
     }

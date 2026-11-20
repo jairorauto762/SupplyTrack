@@ -5,6 +5,7 @@ export default function RequestComposer({
   purpose,
   error,
   hasUnavailableQuantity,
+  requestLimitReached,
   onClose,
   onSubmit,
   onRemoveItem,
@@ -43,6 +44,7 @@ export default function RequestComposer({
 
         <form onSubmit={onSubmit} className="space-y-4">
           {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+          {requestLimitReached && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">You have reached your active request limit. Complete or cancel an active request before submitting another.</p>}
           {cart.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Your request is empty. Add available items from the inventory.</p>
           ) : (
@@ -67,7 +69,7 @@ export default function RequestComposer({
             Purpose
             <textarea required maxLength={500} value={purpose} onChange={(event) => onPurposeChange(event.target.value)} rows={3} placeholder="Explain how these supplies will be used" className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15" />
           </label>
-          <button type="submit" disabled={loading || !cart.length || hasUnavailableQuantity} className="w-full rounded-xl bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={loading || !cart.length || hasUnavailableQuantity || requestLimitReached} className="w-full rounded-xl bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? 'Submitting…' : 'Submit request'}
           </button>
         </form>
