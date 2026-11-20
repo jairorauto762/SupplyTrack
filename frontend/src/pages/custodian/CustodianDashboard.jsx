@@ -156,6 +156,7 @@ export default function CustodianDashboard({ user, onLogout }) {
             Requests {pendingCount > 0 && <span className="ml-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-800">{pendingCount}</span>}
           </button>
           <button type="button" onClick={() => setActiveTab('items')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'items' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>All items</button>
+          <button type="button" onClick={() => setActiveTab('insights')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'insights' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Insights</button>
           <button type="button" onClick={() => setActiveTab('reports')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'reports' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Item reports</button>
           <button type="button" onClick={() => setActiveTab('ledger')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'ledger' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Stock ledger</button>
           <button type="button" onClick={() => setActiveTab('add')} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === 'add' ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-500'}`}>Add inventory</button>
@@ -163,9 +164,21 @@ export default function CustodianDashboard({ user, onLogout }) {
 
         {activeTab === 'requests' && (
           <>
-            <InventorySummary summary={inventorySummary} loading={summaryLoading} />
-            {summaryError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{summaryError}</p>}
-            {!summaryLoading && inventorySummary && <InventoryInsights summary={inventorySummary} itemLinkPrefix="/custodian/items" />}
+            <section className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">Pending requests</p>
+                <p className="mt-2 text-3xl font-bold text-slate-950">{pendingCount}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">Approved / preparing</p>
+                <p className="mt-2 text-3xl font-bold text-slate-950">{activeRequestsCount}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">Queue refreshed</p>
+                <p className="mt-2 text-base font-bold text-slate-950">{new Date().toLocaleTimeString()}</p>
+                <p className="mt-1 text-xs text-slate-500">Updates automatically every 15 seconds</p>
+              </div>
+            </section>
             <DepartmentRequestSummary />
             <RequestsPanel
               requests={requests}
@@ -176,15 +189,20 @@ export default function CustodianDashboard({ user, onLogout }) {
           </>
         )}
         {activeTab === 'items' && (
-          <ItemsPanel
-            items={inventoryItems}
-            loading={inventoryLoading}
-            error={inventoryError}
-            onRefresh={loadInventory}
-            onAdd={() => setActiveTab('add')}
-            onRestocked={handleRestocked}
-          />
+          <>
+            <InventorySummary summary={inventorySummary} loading={summaryLoading} />
+            {summaryError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{summaryError}</p>}
+            <ItemsPanel
+              items={inventoryItems}
+              loading={inventoryLoading}
+              error={inventoryError}
+              onRefresh={loadInventory}
+              onAdd={() => setActiveTab('add')}
+              onRestocked={handleRestocked}
+            />
+          </>
         )}
+        {activeTab === 'insights' && !summaryLoading && inventorySummary && <InventoryInsights summary={inventorySummary} itemLinkPrefix="/custodian/items" />}
         {activeTab === 'reports' && <ItemReportsPanel />}
         {activeTab === 'ledger' && (
           <LedgerPanel />
@@ -196,22 +214,6 @@ export default function CustodianDashboard({ user, onLogout }) {
             onAdded={loadInventory}
           />
         )}
-
-        <section className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Pending requests</p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">{pendingCount}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Approved / preparing</p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">{activeRequestsCount}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Queue refreshed</p>
-            <p className="mt-2 text-base font-bold text-slate-950">{new Date().toLocaleTimeString()}</p>
-            <p className="mt-1 text-xs text-slate-500">Updates automatically every 15 seconds</p>
-          </div>
-        </section>
 
         <PickListDialog requests={pickList} onClose={() => setPickList(null)} />
         {receipt && <RequestReceipt request={receipt} onClose={() => setReceipt(null)} />}
